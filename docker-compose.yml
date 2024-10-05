@@ -1,0 +1,51 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    # command: sh -c "python manage.py makemigrations && python manage.py migrate && daphne pascraper.asgi:application -b 0.0.0.0 -p 8000"
+    command: sh -c "daphne pascraper.asgi:application -b 0.0.0.0 -p 8000"
+    volumes:
+      - .:/code
+    ports:
+      - '8000:8000'
+    # expose:
+    #   - "8000"
+    depends_on:
+      - redis
+    container_name: analysis_app
+
+  redis:
+    image: redis:latest
+    container_name: analysis_app_redis
+
+  # nginx:
+  #   image: nginx:latest
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./nginx.conf:/etc/nginx/nginx.conf:ro
+  #     - ./ssl:/etc/nginx/ssl:ro
+  #   depends_on:
+  #     - web
+  #   container_name: nginx_proxy
+
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      sh -c "
+        echo 'Waiting for analysis_app and redis...';
+        while ! nc -z analysis_app 8000 || ! nc -z redis 6379; do
+          sleep 1;
+        done;
+        echo 'Web and Redis are up - starting celery worker';
+        celery -A pascraper worker --loglevel=info
+      "
+    volumes:
+      - .:/code
+    depends_on:
+      - redis
+    container_name: analysis_app_celery
