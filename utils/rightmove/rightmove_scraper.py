@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
+
 from utils.base_scraper import BaseScraper
 
 
@@ -23,7 +24,6 @@ class RightmoveScraper(BaseScraper):
         self.wait_for_page_load()
         # self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
         self.soup = BeautifulSoup(self.driver.page_source, "lxml")
-
         # Extract data from the main page
         data["address"] = self.get_address()
         data["price"] = self.get_price()

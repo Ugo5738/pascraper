@@ -1,12 +1,18 @@
 import json
+import re
+from decimal import Decimal
 
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+
+from pascraper.config.logging_config import configure_logger
 from sitescrapers.models import Property, ScrapingJob
 from utils.onthemarket.onthemarket_scraper import OnTheMarketScraper
 from utils.rightmove.rightmove_scraper import RightmoveScraper
 from utils.zoopla.zoopla_scraper import ZooplaScraper
+
+logger = configure_logger(__name__)
 
 
 class ScraperConsumer(AsyncWebsocketConsumer):
@@ -88,11 +94,18 @@ class ScraperConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def save_property_data(self, data, source, url):
+        # Clean and convert the price
+        price_str = data["price"]
+        # Remove currency symbols and commas
+        price_str = re.sub(r"[^\d.]", "", price_str)
+        # Convert to Decimal
+        price = Decimal(price_str)
+
         return Property.objects.create(
             source=source,
             url=url,
             address=data["address"],
-            price=data["price"],
+            price=price,  # Use the cleaned price
             bedrooms=data["bedrooms"],
             bathrooms=data["bathrooms"],
             size=data["size"],
