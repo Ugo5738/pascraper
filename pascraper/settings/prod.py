@@ -97,6 +97,13 @@ CELERY_IMPORTS = ("pascraper.tasks",)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+
+# CELERY_TASK_QUEUES = {
+#     "scraper_queue": {
+#         "exchange": "scraper_exchange",
+#         "routing_key": "scraper.#",
+#     },
+# }
 # ================================ CELERY =======================================
 
 

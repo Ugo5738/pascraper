@@ -1,18 +1,32 @@
+import json
 import re
 import time
+from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
+from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import sync_playwright
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from utils.base_scraper import BaseScraper
+from utils.util_funcs import send_progress_update
 
 
 class OnTheMarketScraper(BaseScraper):
     def __init__(self, url):
         super().__init__(url)
         self.init_selenium()
+        match = re.search(r"/details/(\d+)", url)
+        if match:
+            self.property_id = match.group(1)
+            self.image_url = (
+                f"https://www.onthemarket.com/details/{self.property_id}/#/photos/1"
+            )
+        else:
+            raise ValueError("Invalid OnTheMarket URL format: Property ID not found.")
+
         self.wait = WebDriverWait(self.driver, 10)
         self.soup = None  # Will be set after loading each page
 
@@ -25,6 +39,7 @@ class OnTheMarketScraper(BaseScraper):
         self.soup = BeautifulSoup(self.driver.page_source, "lxml")
 
         # Extract data from the main page
+        # send_progress_update()
         data["address"] = self.get_address()
         data["price"] = self.get_price()
         data["bedrooms"] = self.get_bedrooms()
@@ -44,7 +59,7 @@ class OnTheMarketScraper(BaseScraper):
     def wait_for_page_load(self):
         # Wait until the body tag is loaded
         self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
-        time.sleep(1)  # Small delay to ensure all elements are loaded
+        time.sleep(2)  # Small delay to ensure all elements are loaded
 
     def get_price(self):
         price_tag = self.soup.find("div", class_="otm-Price")
@@ -119,13 +134,28 @@ class OnTheMarketScraper(BaseScraper):
 
     def get_property_images(self):
         images = []
-        image_gallery = self.soup.find("div", class_="property-gallery")
-        if image_gallery:
-            img_tags = image_gallery.find_all("img")
-            for img in img_tags:
-                src = img.get("src")
-                if src and src not in images:
-                    images.append(src)
+
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page()
+
+            try:
+                page.goto(self.image_url, timeout=60000)
+                page.wait_for_selector("li.slide img", timeout=60000)
+
+                image_elements = page.query_selector_all("li.slide img")
+                for img in image_elements:
+                    src_img = img.get_attribute("src")
+                    if src_img and "logo" not in src_img:
+                        images.append(src_img)
+
+            except PlaywrightTimeoutError as e:
+                print(f"Timeout error for {self.image_url}: {e}")
+            except Exception as e:
+                print(f"Error navigating to {self.image_url}: {e}")
+            finally:
+                browser.close()
+
         return images
 
     def get_floorplans(self):

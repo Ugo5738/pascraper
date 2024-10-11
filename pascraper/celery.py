@@ -13,6 +13,9 @@ app = Celery("pascraper")
 # the configuration object to child processes.
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
+# # Set default queue
+# app.conf.task_default_queue = "scraper_queue"
+
 # # Load task modules from all registered Django app configs.
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)
 

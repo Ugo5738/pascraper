@@ -45,3 +45,38 @@
 2024-10-08 09:43:37,120 - sitescrapers.consumers - INFO - Property instance update
 2024-10-08 09:43:39,477 - sitescrapers.consumers - INFO - scraping and property relationship update
 2024-10-08 09:43:41,836 - sitescrapers.consumers - INFO - ScrapingJob instance update
+2024-10-10 17:13:17,454 - sitescrapers.tasks - INFO - Existing property updated with ID: 4
+2024-10-10 17:13:17,700 - sitescrapers.tasks - INFO - Sending callback to URL: http://localhost:8000/api/analysis/scraping-callback/ with data: {'job_id': 23, 'property_id': 4, 'task_id': 21}
+2024-10-10 17:24:27,042 - sitescrapers.tasks - INFO - Existing property updated with ID: 4
+2024-10-10 17:24:27,341 - sitescrapers.tasks - INFO - Sending callback to URL: http://analysis-app:8000/api/analysis/scraping-callback/ with data: {'job_id': 24, 'property_id': 4, 'task_id': 22}
+2024-10-10 17:24:27,528 - sitescrapers.tasks - ERROR - [tasks.py:61] - Failed to send callback: 500 Server Error: Internal Server Error for url: http://analysis-app:8000/api/analysis/scraping-callback/
+2024-10-10 17:47:13,760 - sitescrapers.tasks - INFO - Existing property updated with ID: 4
+2024-10-10 17:47:14,013 - sitescrapers.tasks - INFO - Sending callback to URL: http://analysis-app:8000/api/analysis/scraping-callback/ with data: {'job_id': 25, 'property_id': 4, 'task_id': 23}
+2024-10-10 17:47:15,018 - sitescrapers.tasks - INFO - Callback response status: 200
+2024-10-11 01:56:55,174 - sitescrapers.tasks - INFO - Existing property updated with ID: 4
+2024-10-11 01:56:55,434 - sitescrapers.tasks - INFO - Sending callback to URL: http://analysis-app:8000/api/analysis/scraping-callback/ with data: {'job_id': 28, 'property_id': 4, 'task_id': 27}
+2024-10-11 01:56:57,534 - sitescrapers.tasks - ERROR - [tasks.py:61] - Failed to send callback: HTTPConnectionPool(host='analysis-app', port=8000): Max retries exceeded with url: /api/analysis/scraping-callback/ (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff780755b0>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+2024-10-11 02:14:32,069 - sitescrapers.tasks - INFO - Existing property updated with ID: 4
+2024-10-11 02:14:32,327 - sitescrapers.tasks - INFO - Sending callback to URL: http://analysis-app:8000/api/analysis/scraping-callback/ with data: {'job_id': 29, 'property_id': 4, 'task_id': 28}
+2024-10-11 02:14:32,381 - sitescrapers.tasks - ERROR - [tasks.py:61] - Failed to send callback: HTTPConnectionPool(host='analysis-app', port=8000): Max retries exceeded with url: /api/analysis/scraping-callback/ (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0xffff7cca3550>: Failed to establish a new connection: [Errno -2] Name or service not known'))
+2024-10-11 02:44:52,035 - sitescrapers.tasks - INFO - Existing property updated with ID: 4
+2024-10-11 02:44:52,295 - sitescrapers.tasks - INFO - Sending callback to URL: http://analysis-app:8000/api/analysis/scraping-callback/ with data: {'job_id': 30, 'property_id': 4, 'task_id': 29}
+2024-10-11 02:44:52,457 - sitescrapers.tasks - INFO - Callback response status: 200
+2024-10-11 02:59:30,511 - sitescrapers.tasks - INFO - Existing property updated with ID: 4
+2024-10-11 02:59:30,762 - sitescrapers.tasks - INFO - Sending callback to URL: http://analysis-app:8000/api/analysis/scraping-callback/ with data: {'job_id': 31, 'property_id': 4, 'task_id': 30}
+2024-10-11 02:59:30,882 - sitescrapers.tasks - INFO - Callback response status: 200
+2024-10-11 03:08:37,692 - sitescrapers.tasks - INFO - Error saving property data: expected string or bytes-like object
+2024-10-11 03:27:43,219 - sitescrapers.tasks - INFO - Existing property updated with ID: 4
+2024-10-11 03:27:43,487 - sitescrapers.tasks - INFO - Sending callback to URL: http://analysis-app:8000/api/analysis/scraping-callback/ with data: {'job_id': 33, 'property_id': 4, 'task_id': 32}
+2024-10-11 03:27:43,628 - sitescrapers.tasks - INFO - Callback response status: 200
+2024-10-11 04:57:12,297 - sitescrapers.tasks - INFO - Progress update sent: {'stage': 'scraping', 'message': 'Scraping started', 'progress': 10}
+2024-10-11 04:57:24,816 - sitescrapers.tasks - INFO - Progress update sent: {'stage': 'error', 'message': "'OnTheMarketScraper' object has no attribute 'property_id'", 'progress': 0}
+2024-10-11 05:24:46,282 - sitescrapers.tasks - INFO - Progress update sent: {'stage': 'scraping', 'message': 'Fetching details', 'progress': 10}
+2024-10-11 05:24:59,508 - sitescrapers.tasks - INFO - Progress update sent: {'stage': 'error', 'message': "scrape_property() missing 1 required positional argument: 'consumer'", 'progress': 0}
+2024-10-11 05:38:42,362 - utils.util_funcs - INFO - Progress update sent: {'stage': 'scraping', 'message': 'Fetching details', 'progress': 10}
+2024-10-11 05:38:58,306 - utils.util_funcs - INFO - Progress update sent: {'stage': 'error', 'message': "BrowserType.launch: Executable doesn't exist at /ms-playwright/chromium-1134/chrome-linux/chrome\n╔════════════════════════════════════════════════════════════╗\n║ Looks like Playwright was just installed or updated.       ║\n║ Please run the following command to download new browsers: ║\n║                                                            ║\n║     playwright install                                     ║\n║                                                            ║\n║ <3 Playwright Team                                         ║\n╚════════════════════════════════════════════════════════════╝", 'progress': 0}
+2024-10-11 06:00:22,613 - utils.util_funcs - INFO - Progress update sent: {'stage': 'scraping', 'message': 'Fetching details', 'progress': 10}
+2024-10-11 06:00:48,913 - utils.util_funcs - INFO - Progress update sent: {'stage': 'scraping', 'message': 'Fetching completed', 'progress': 100}
+2024-10-11 06:00:51,051 - utils.util_funcs - INFO - New property created with ID: 5
+2024-10-11 06:00:51,299 - sitescrapers.tasks - INFO - Sending callback to URL: http://analysis-app:8000/api/analysis/scraping-callback/ with data: {'job_id': 37, 'property_id': 5, 'task_id': 36}
+2024-10-11 06:00:51,561 - sitescrapers.tasks - INFO - Callback response status: 200

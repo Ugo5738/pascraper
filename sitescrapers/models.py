@@ -46,14 +46,15 @@ class ScrapingJob(models.Model):
     ]
 
     url = models.URLField()
+    source = models.CharField(max_length=50, null=True, blank=True)
     status = models.CharField(
         max_length=20, choices=JOB_STATUS_CHOICES, default="pending"
     )
+    callback_url = models.URLField(null=True, blank=True)
+    property_id = models.IntegerField(null=True, blank=True)
+    task_id = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    property = models.ForeignKey(
-        Property, on_delete=models.SET_NULL, null=True, blank=True
-    )
 
     def __str__(self):
         return f"Job for {self.url} - {self.status}"

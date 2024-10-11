@@ -4,19 +4,25 @@ services:
       context: .
       dockerfile: Dockerfile
     command: sh -c "python manage.py makemigrations && python manage.py migrate && daphne pascraper.asgi:application -b 0.0.0.0 -p 8000"
+    # command: sh -c "python manage.py makemigrations && python manage.py migrate && daphne pascraper.asgi:application -b 0.0.0.0 -p 8001"
     volumes:
       - .:/code
-    # ports:
-    #   - '8000:8000'
+    ports:
+      # - '8000:8000'
+      # - '8001:8001'
     expose:
       - "8000"
     depends_on:
       - redis
-    container_name: analysis_app
+    # networks:
+    #   default:
+    #     aliases:
+    #       - analysis-scraper-app
+    container_name: analysis-scraper-app
 
   redis:
     image: redis:latest
-    container_name: analysis_app_redis
+    container_name: analysis-scraper-app-redis
 
   nginx:
     image: nginx:latest
@@ -36,15 +42,22 @@ services:
       dockerfile: Dockerfile
     command: >
       sh -c "
-        echo 'Waiting for analysis_app and redis...';
-        while ! nc -z analysis_app 8000 || ! nc -z redis 6379; do
+        echo 'Waiting for analysis-scraper-app and redis...';
+        while ! nc -z analysis-scraper-app 8000 || ! nc -z redis 6379; do
+        # while ! nc -z analysis-scraper-app 8001 || ! nc -z analysis-app-redis 6379; do
           sleep 1;
         done;
         echo 'Web and Redis are up - starting celery worker';
         celery -A pascraper worker --loglevel=info
+        # celery -A pascraper worker --loglevel=info -Q scraper_queue
       "
     volumes:
       - .:/code
     depends_on:
       - redis
-    container_name: analysis_app_celery
+    container_name: analysis-scraper-app-celery
+
+# networks:
+#   default:
+#     external:
+#       name: shared_network

@@ -33,11 +33,11 @@ COPY . /code/
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# # Run playwright install to ensure all browsers are downloaded
-# RUN playwright install --with-deps
+# Run playwright install to ensure all browsers are downloaded
+RUN playwright install --with-deps
 
-# # Verify Playwright installation (add this line)
-# RUN npx playwright --version
+# Verify Playwright installation (add this line)
+RUN npx playwright --version
 
 # Set execute permission for entrypoint.sh
 RUN chmod +x /code/entrypoint.sh

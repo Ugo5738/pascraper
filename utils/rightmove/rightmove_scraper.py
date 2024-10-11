@@ -13,6 +13,12 @@ class RightmoveScraper(BaseScraper):
     def __init__(self, url):
         super().__init__(url)
         self.init_selenium()
+        self.image_url = (
+            f"{self.base_url}#/media?id=media0&ref=photoCollage&channel=RES_BUY"
+        )
+        self.floor_image_url = (
+            f"{self.base_url}#/floorplan?activePlan=1&channel=RES_BUY"
+        )
         self.wait = WebDriverWait(self.driver, 10)
         self.soup = None  # Will be set after loading each page
 
@@ -89,7 +95,7 @@ class RightmoveScraper(BaseScraper):
             src = img.get("src")
             if src and "media" in src and "max_" not in src:
                 images.append(src)
-        return images
+        return list(set(images))
 
     def get_price(self):
         price_tag = self.soup.find("div", class_="_1gfnqJ3Vtd1z40MlC0MzXu")

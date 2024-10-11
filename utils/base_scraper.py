@@ -12,8 +12,6 @@ from selenium.webdriver.chrome.service import Service
 class BaseScraper:
     def __init__(self, url):
         self.base_url = url
-        self.image_url = f"{url}#/media?id=media0&ref=photoCollage&channel=RES_BUY"
-        self.floor_image_url = f"{url}#/floorplan?activePlan=1&channel=RES_BUY"
         self.driver = None
 
     def get_html_content(self):
