@@ -168,3 +168,4 @@ jobs:
 # username = propertyanalysisai
 # repo name = scraper
 # .env encrypt with scraper
+# gpg --symmetric --cipher-algo AES256 --output .env.gpg .env
