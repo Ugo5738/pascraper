@@ -4,7 +4,6 @@ FROM python:3.9
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV PLAYWRIGHT_BROWSERS_PATH /ms-playwright
 
 # Install necessary system dependencies
 RUN apt-get update -y && \
@@ -17,9 +16,9 @@ RUN apt-get update -y && \
     chromium \
     chromium-driver
 
-# Install Node.js for Playwright
-RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - && \
-    apt-get install -y nodejs
+# # Install Node.js for Playwright
+# RUN curl -fsSL https://deb.nodesource.com/setup_21.x | bash - && \
+#     apt-get install -y nodejs
 
 # Clean up APT when done
 RUN apt-get clean && rm -rf /var/lib/apt/lists/*
@@ -33,11 +32,11 @@ COPY . /code/
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Run playwright install to ensure all browsers are downloaded
-RUN playwright install --with-deps
+# # Run playwright install to ensure all browsers are downloaded
+# RUN playwright install --with-deps
 
-# Verify Playwright installation (add this line)
-RUN npx playwright --version
+# # Verify Playwright installation (add this line)
+# RUN npx playwright --version
 
 # Set execute permission for entrypoint.sh
 RUN chmod +x /code/entrypoint.sh

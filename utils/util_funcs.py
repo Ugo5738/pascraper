@@ -54,6 +54,7 @@ def send_progress_update(callback_url, job_id, progress_data):
                 "job_id": job_id,
                 "progress": progress_data,
             },
+            verify=False,
         )
         response.raise_for_status()
         logger.info(f"Progress update sent: {progress_data}")

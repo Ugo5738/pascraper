@@ -11,8 +11,7 @@ from utils.util_funcs import save_property_data, send_progress_update
 logger = configure_logger(__name__)
 
 
-@shared_task()
-# @shared_task(name="pascraper.tasks.start_scraping_job", queue="scraper_queue")
+@shared_task(name="pascraper.tasks.start_scraping_job", queue="scraper_queue")
 def start_scraping_job(job_id):
     job = ScrapingJob.objects.get(id=job_id)
 
@@ -74,7 +73,7 @@ def start_scraping_job(job_id):
         )
 
         try:
-            response = requests.post(job.callback_url, json=callback_data)
+            response = requests.post(job.callback_url, json=callback_data, verify=False)
             response.raise_for_status()
             logger.info(f"Callback response status: {response.status_code}")
         except RequestException as e:
