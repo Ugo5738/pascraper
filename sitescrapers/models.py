@@ -1,6 +1,7 @@
 from django.contrib.postgres.fields import ArrayField
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 
 class Property(models.Model):
@@ -36,6 +37,10 @@ class Property(models.Model):
     def __str__(self):
         return f"{self.source} - {self.address}"
 
+    class Meta:
+        verbose_name = _("Property")
+        verbose_name_plural = _("Properties")
+
 
 class ScrapingJob(models.Model):
     JOB_STATUS_CHOICES = [
@@ -58,3 +63,7 @@ class ScrapingJob(models.Model):
 
     def __str__(self):
         return f"Job for {self.url} - {self.status}"
+
+    class Meta:
+        verbose_name = _("ScrapingJob")
+        verbose_name_plural = _("ScrapingJobs")

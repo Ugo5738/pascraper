@@ -1,9 +1,15 @@
 services:
   web:
+    container_name: analysis-scraper-app
     build:
       context: .
       dockerfile: Dockerfile
-    command: sh -c "python manage.py makemigrations && python manage.py migrate && daphne pascraper.asgi:application -b 0.0.0.0 -p 8001"
+    command: >
+      sh -c "
+        python manage.py makemigrations &&
+        python manage.py migrate &&
+        daphne pascraper.asgi:application -b 0.0.0.0 -p 8001
+      "
     volumes:
       - .:/code
     ports:
@@ -11,23 +17,23 @@ services:
     depends_on:
       - redis
     networks:
-      default:
-        aliases:
-          - analysis-scraper-app
-    container_name: analysis-scraper-app
+      - default
 
   redis:
-    image: redis:latest
     container_name: analysis-scraper-app-redis
+    image: redis:latest
+    networks:
+      - default
 
   celery:
+    container_name: analysis-scraper-app-celery
     build:
       context: .
       dockerfile: Dockerfile
     command: >
       sh -c "
         echo 'Waiting for analysis-scraper-app and redis...';
-        while ! nc -z analysis-scraper-app 8001 || ! nc -z analysis-app-redis 6379; do
+        while ! nc -z analysis-scraper-app 8001 || ! nc -z redis 6379; do
           sleep 1;
         done;
         echo 'Web and Redis are up - starting celery worker';
@@ -37,8 +43,9 @@ services:
       - .:/code
     depends_on:
       - redis
-    container_name: analysis-scraper-app-celery
-
+    networks:
+      - default
+    
 networks:
   default:
     external:

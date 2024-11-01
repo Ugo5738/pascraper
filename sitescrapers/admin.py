@@ -48,13 +48,7 @@ class PropertyAdmin(admin.ModelAdmin):
 
     def get_queryset(self, request):
         queryset = super().get_queryset(request)
-        queryset = queryset.annotate(scraping_jobs_count=Count("scrapingjob"))
         return queryset
-
-    def scraping_jobs(self, obj):
-        return obj.scraping_jobs_count
-
-    scraping_jobs.admin_order_field = "scraping_jobs_count"
 
     def view_on_site(self, obj):
         return obj.url

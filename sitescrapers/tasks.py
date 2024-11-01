@@ -11,7 +11,8 @@ from utils.util_funcs import save_property_data, send_progress_update
 logger = configure_logger(__name__)
 
 
-@shared_task(name="pascraper.tasks.start_scraping_job", queue="scraper_queue")
+@shared_task()
+# @shared_task(name="pascraper.tasks.start_scraping_job", queue="scraper_queue")
 def start_scraping_job(job_id):
     job = ScrapingJob.objects.get(id=job_id)
 
@@ -34,8 +35,10 @@ def start_scraping_job(job_id):
         # Run the appropriate scraper
         if job.source == "rightmove":
             scraper = RightmoveScraper(job.url)
+            logger.info("Rightmove Scraper initiated...")
         elif job.source == "onthemarket":
             scraper = OnTheMarketScraper(job.url)
+            logger.info("OnTheMarket Scraper initiated...")
         else:
             raise ValueError(f"Invalid source: {job.source}")
 
