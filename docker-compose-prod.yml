@@ -7,7 +7,7 @@ services:
       sh -c "
         python manage.py makemigrations &&
         python manage.py migrate &&
-        daphne pascraper.asgi:application -b 0.0.0.0 -p 8001
+        daphne pascraper.asgi:application -b 0.0.0.0 -p 8000
       "
     volumes:
       - .:/code
@@ -45,7 +45,6 @@ services:
         done;
         echo 'Web and Redis are up - starting celery worker';
         celery -A pascraper worker --loglevel=info
-        # celery -A pascraper worker --loglevel=info -Q scraper_queue
       "
     volumes:
       - .:/code
