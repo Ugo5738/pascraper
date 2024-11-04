@@ -56,7 +56,10 @@ class ScrapingJob(models.Model):
         max_length=20, choices=JOB_STATUS_CHOICES, default="pending"
     )
     callback_url = models.URLField(null=True, blank=True)
-    property_id = models.IntegerField(null=True, blank=True)
+    property_id = models.IntegerField(null=True, blank=True)  # ID from main app
+    scraped_property_id = models.IntegerField(
+        null=True, blank=True
+    )  # ID from scraper app
     task_id = models.IntegerField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

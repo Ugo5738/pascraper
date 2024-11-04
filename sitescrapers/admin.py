@@ -3,7 +3,7 @@ from django.db.models import Count
 from django.urls import reverse
 from django.utils.html import format_html
 
-from .models import Property, ScrapingJob
+from sitescrapers.models import Property, ScrapingJob
 
 
 @admin.register(Property)

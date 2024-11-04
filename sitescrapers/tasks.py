@@ -60,14 +60,14 @@ def start_scraping_job(job_id):
         property_instance = save_property_data(data, job.source, job.url)
 
         # Update the job with the saved property
-        job.property_id = property_instance.id
+        job.scraped_property_id = property_instance.id
         job.status = "completed"
         job.save()
 
         # Send callback to the main application
         callback_data = {
             "job_id": job.id,
-            "property_id": job.property_id,
+            "property_id": job.property_id,  # Use the original property_id from the main app
             "task_id": job.task_id,
         }
 

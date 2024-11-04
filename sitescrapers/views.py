@@ -78,7 +78,7 @@ class ScrapingJobDataView(APIView):
                     {"error": "Scraping not completed yet."},
                     status=status.HTTP_202_ACCEPTED,
                 )
-            property_instance = Property.objects.get(id=job.property_id)
+            property_instance = Property.objects.get(id=job.scraped_property_id)
             property_data = {
                 "address": property_instance.address,
                 "price": str(property_instance.price),
