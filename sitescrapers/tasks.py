@@ -26,7 +26,7 @@ def start_scraping_job(job_id):
             job.callback_url,
             job.id,
             {
-                "stage": "scraping",
+                "stage": "started",
                 "message": "Fetching details",
                 "progress": 10,
             },

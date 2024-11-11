@@ -7,12 +7,15 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
 from utils.base_scraper import BaseScraper
+from utils.util_funcs import send_progress_update
 
 
 class RightmoveScraper(BaseScraper):
-    def __init__(self, url):
+    def __init__(self, url, callback_url=None, job_id=None):
         super().__init__(url)
         self.init_selenium()
+        self.callback_url = callback_url
+        self.job_id = job_id
         self.image_url = (
             f"{self.base_url}#/media?id=media0&ref=photoCollage&channel=RES_BUY"
         )
@@ -22,15 +25,38 @@ class RightmoveScraper(BaseScraper):
         self.wait = WebDriverWait(self.driver, 10)
         self.soup = None  # Will be set after loading each page
 
+    def send_progress(self, message, current_step, total_steps, stage="First Step"):
+        if self.callback_url and self.job_id:
+            progress = (current_step / total_steps) * 100
+            send_progress_update(
+                self.callback_url,
+                self.job_id,
+                {
+                    "stage": stage,
+                    "message": message,
+                    "progress": progress,
+                },
+            )
+
     def scrape_property(self):
         data = {}
+        total_steps = 4  # Adjust based on the number of steps in the process
+        current_step = 0
 
-        # Navigate to the main property page
+        # Step 1: Navigate to the main property page
+        current_step += 1
+        self.send_progress(
+            "Navigating to main property page", current_step, total_steps
+        )
         self.driver.get(self.base_url)
         self.wait_for_page_load()
-        # self.soup = BeautifulSoup(self.driver.page_source, 'html.parser')
         self.soup = BeautifulSoup(self.driver.page_source, "lxml")
-        # Extract data from the main page
+
+        # Step 2: Extract data from the main page
+        current_step += 1
+        self.send_progress(
+            "Taking a look at the main page data", current_step, total_steps
+        )
         data["address"] = self.get_address()
         data["price"] = self.get_price()
         data["bedrooms"] = self.get_bedrooms()
@@ -42,10 +68,16 @@ class RightmoveScraper(BaseScraper):
         # data["time_on_market"] = self.get_time_on_market()
         # data["features"] = self.get_features()
 
-        # Navigate to the images page and extract images
+        # Step 3: Navigate to the images page and extract images
+        current_step += 1
+        self.send_progress(
+            "Taking a look at the property images", current_step, total_steps
+        )
         data["images"] = self.get_property_images()
 
-        # Navigate to the floorplan page and extract floorplans
+        # Step 4: Navigate to the floorplan page and extract floorplans
+        current_step += 1
+        self.send_progress("Taking a look at the floorplans", current_step, total_steps)
         data["floorplans"] = self.get_floorplans()
 
         return data
