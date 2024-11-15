@@ -49,10 +49,13 @@ class StartScrapingView(APIView):
         callback_url = request.data.get("callback_url")
         property_id = request.data.get("property_id")
         task_id = request.data.get("task_id")
+        user_phone_number = request.data.get("user_phone_number")
 
-        if not url or not source or not callback_url:
+        if not url or not source or not callback_url or not user_phone_number:
             return Response(
-                {"error": "URL, source, and callback_url are required."},
+                {
+                    "error": "URL, source, callback_url and user_phone_number are required."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -62,6 +65,7 @@ class StartScrapingView(APIView):
             callback_url=callback_url,
             property_id=property_id,
             task_id=task_id,
+            user_phone_number=user_phone_number,
         )
 
         start_scraping_job.delay(job.id)
@@ -88,6 +92,7 @@ class ScrapingJobDataView(APIView):
                 "house_type": property_instance.house_type,
                 "agent": property_instance.agent,
                 "description": property_instance.description,
+                "listing_type": property_instance.listing_type,
                 "images": property_instance.images,
                 "floorplans": property_instance.floorplans,
             }

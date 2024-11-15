@@ -14,9 +14,11 @@ logger = configure_logger(__name__)
 
 
 class OnTheMarketScraper(BaseScraper):
-    def __init__(self, url):
+    def __init__(self, url, callback_url=None, job_id=None):
         super().__init__(url)
         self.init_selenium()
+        self.callback_url = callback_url
+        self.job_id = job_id
         match = re.search(r"/details/(\d+)", url)
         if match:
             self.property_id = match.group(1)
@@ -32,16 +34,38 @@ class OnTheMarketScraper(BaseScraper):
         self.wait = WebDriverWait(self.driver, 10)
         self.soup = None  # Will be set after loading each page
 
+    def send_progress(self, message, current_step, total_steps, stage="First Step"):
+        if self.callback_url and self.job_id:
+            progress = (current_step / total_steps) * 100
+            send_progress_update(
+                self.callback_url,
+                self.job_id,
+                {
+                    "stage": stage,
+                    "message": message,
+                    "progress": progress,
+                },
+            )
+
     def scrape_property(self):
         data = {}
+        total_steps = 4  # Adjust based on the number of steps in the process
+        current_step = 0
 
-        # Navigate to the main property page
+        # Step 1: Navigate to the main property page
+        current_step += 1
+        self.send_progress(
+            "Navigating to main property page", current_step, total_steps
+        )
         self.driver.get(self.base_url)
         self.wait_for_page_load()
         self.soup = BeautifulSoup(self.driver.page_source, "lxml")
 
-        # Extract data from the main page
-        # send_progress_update()
+        # Step 2: Extract data from the main page
+        current_step += 1
+        self.send_progress(
+            "Taking a look at the main page data", current_step, total_steps
+        )
         data["address"] = self.get_address()
         data["price"] = self.get_price()
         data["bedrooms"] = self.get_bedrooms()
@@ -52,8 +76,16 @@ class OnTheMarketScraper(BaseScraper):
         data["description"] = self.get_description()
         data["features"] = self.get_features()
 
-        # Extract images and floorplans
+        # Step 3: Navigate to the images page and extract images
+        current_step += 1
+        self.send_progress(
+            "Taking a look at the property images", current_step, total_steps
+        )
         data["images"] = self.get_property_images()
+
+        # Step 4: Navigate to the floorplan page and extract floorplans
+        current_step += 1
+        self.send_progress("Taking a look at the floorplans", current_step, total_steps)
         data["floorplans"] = self.get_floorplans()
 
         return data

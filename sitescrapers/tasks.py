@@ -34,10 +34,14 @@ def start_scraping_job(job_id):
 
         # Run the appropriate scraper
         if job.source == "rightmove":
-            scraper = RightmoveScraper(job.url)
+            scraper = RightmoveScraper(
+                job.url, callback_url=job.callback_url, job_id=job.id
+            )
             logger.info("Rightmove Scraper initiated...")
         elif job.source == "onthemarket":
-            scraper = OnTheMarketScraper(job.url)
+            scraper = OnTheMarketScraper(
+                job.url, callback_url=job.callback_url, job_id=job.id
+            )
             logger.info("OnTheMarket Scraper initiated...")
         else:
             raise ValueError(f"Invalid source: {job.source}")
@@ -69,6 +73,7 @@ def start_scraping_job(job_id):
             "job_id": job.id,
             "property_id": job.property_id,  # Use the original property_id from the main app
             "task_id": job.task_id,
+            "user_phone_number": job.user_phone_number,
         }
 
         logger.info(

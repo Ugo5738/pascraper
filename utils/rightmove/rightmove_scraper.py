@@ -16,14 +16,11 @@ class RightmoveScraper(BaseScraper):
         self.init_selenium()
         self.callback_url = callback_url
         self.job_id = job_id
-        self.image_url = (
-            f"{self.base_url}#/media?id=media0&ref=photoCollage&channel=RES_BUY"
-        )
-        self.floor_image_url = (
-            f"{self.base_url}#/floorplan?activePlan=1&channel=RES_BUY"
-        )
         self.wait = WebDriverWait(self.driver, 10)
         self.soup = None  # Will be set after loading each page
+        self.listing_type = None
+        self.image_url = None
+        self.floor_image_url = None
 
     def send_progress(self, message, current_step, total_steps, stage="First Step"):
         if self.callback_url and self.job_id:
@@ -52,6 +49,17 @@ class RightmoveScraper(BaseScraper):
         self.wait_for_page_load()
         self.soup = BeautifulSoup(self.driver.page_source, "lxml")
 
+        # Determine the listing type based on page content
+        self.listing_type = self.get_listing_type()
+
+        # Adjust image and floorplan URLs based on listing type
+        self.image_url = (
+            f"{self.base_url}#/media?id=media0&ref=photoCollage&channel=RES_BUY"
+        )
+        self.floor_image_url = (
+            f"{self.base_url}#/floorplan?activePlan=1&channel=RES_BUY"
+        )
+
         # Step 2: Extract data from the main page
         current_step += 1
         self.send_progress(
@@ -65,8 +73,9 @@ class RightmoveScraper(BaseScraper):
         data["house_type"] = self.get_house_type()
         data["agent"] = self.get_agent()
         data["description"] = self.get_description()
-        # data["time_on_market"] = self.get_time_on_market()
-        # data["features"] = self.get_features()
+        data["time_on_market"] = self.get_time_on_market()
+        data["features"] = self.get_features()
+        data["listing_type"] = self.listing_type
 
         # Step 3: Navigate to the images page and extract images
         current_step += 1
@@ -181,16 +190,45 @@ class RightmoveScraper(BaseScraper):
                 return desc_div.get_text(strip=True)
         return None
 
-    # def get_time_on_market(self, soup):
-    #     # Extract the 'Added on' date
-    #     div_tag = soup.find("div", text=lambda x: x and "Added on" in x)
-    #     if div_tag:
-    #         return div_tag.get_text(strip=True)
-    #     return None
+    def get_time_on_market(self):
+        # Search for strings like "Added on" or "Reduced on" to find the date
+        date_text = self.soup.find(string=re.compile("(Added on|Reduced on)", re.I))
+        if date_text:
+            return date_text.strip()
+        else:
+            return None
 
-    # def get_features(self, soup):
-    #     features = []
-    #     features_tags = soup.find_all("li", {"class": "tick"})
-    #     for feature in features_tags:
-    #         features.append(feature.get_text(strip=True))
-    #     return features
+    def get_features(self):
+        features = []
+        h2_tag = self.soup.find("h2", text=re.compile("Key features", re.I))
+        if h2_tag:
+            ul_tag = h2_tag.find_next_sibling("ul")
+            if ul_tag:
+                li_tags = ul_tag.find_all("li")
+                for li in li_tags:
+                    features.append(li.get_text(strip=True))
+        return features
+
+    def get_listing_type(self):
+        # Check for indicators specific to lettings
+        if self.soup.find("h2", text=re.compile("Letting details", re.I)):
+            return "letting"
+        if self.soup.find(string=re.compile("Tenancy info", re.I)):
+            return "letting"
+        if self.soup.find(string=re.compile("Deposit", re.I)):
+            return "letting"
+        if self.soup.find("dt", text=re.compile("Let available date", re.I)):
+            return "letting"
+
+        # Check for indicators specific to sales
+        if self.soup.find("dt", text=re.compile("Tenure", re.I)):
+            return "sale"
+        if self.soup.find(string=re.compile("Freehold|Leasehold", re.I)):
+            return "sale"
+        if self.soup.find(
+            string=re.compile("Offers in region of|Guide Price|Offers over", re.I)
+        ):
+            return "sale"
+
+        # Default to 'sale' if no specific indicators are found
+        return "sale"
