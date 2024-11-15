@@ -92,6 +92,8 @@ class ScrapingJobDataView(APIView):
                 "house_type": property_instance.house_type,
                 "agent": property_instance.agent,
                 "description": property_instance.description,
+                "time_on_market": property_instance.time_on_market,
+                "features": property_instance.features,
                 "listing_type": property_instance.listing_type,
                 "images": property_instance.images,
                 "floorplans": property_instance.floorplans,

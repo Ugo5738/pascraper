@@ -199,15 +199,16 @@ class RightmoveScraper(BaseScraper):
             return None
 
     def get_features(self):
-        features = []
+        features_list = []
         h2_tag = self.soup.find("h2", text=re.compile("Key features", re.I))
         if h2_tag:
             ul_tag = h2_tag.find_next_sibling("ul")
             if ul_tag:
                 li_tags = ul_tag.find_all("li")
                 for li in li_tags:
-                    features.append(li.get_text(strip=True))
-        return features
+                    features_list.append(li.get_text(strip=True))
+        features_text = "\n".join(features_list)
+        return features_text
 
     def get_listing_type(self):
         # Check for indicators specific to lettings

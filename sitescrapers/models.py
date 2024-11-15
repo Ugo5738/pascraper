@@ -28,6 +28,8 @@ class Property(models.Model):
     description = models.TextField()
     images = ArrayField(models.URLField(), blank=True)
     floorplans = ArrayField(models.URLField(), blank=True)
+    time_on_market = models.CharField(max_length=255, null=True, blank=True)
+    features = models.TextField(blank=True, null=True)
     listing_type = models.CharField(
         max_length=10, choices=LISTING_TYPES, null=True, blank=True
     )
