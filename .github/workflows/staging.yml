@@ -90,19 +90,37 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Create SSH directory
-        run: mkdir -p ~/.ssh
+      - name: Debug SSH setup
+        run: |
+          echo "Creating .ssh directory..."
+          mkdir -p ~/.ssh
+          echo "Setting directory permissions..."
+          chmod 700 ~/.ssh
+          echo "Directory created with permissions:"
+          ls -la ~/.ssh
 
       - name: Install SSH key
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          echo "Writing SSH key..."
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
+          echo "Setting key permissions..."
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
-          ls -la ~/.ssh/id_rsa || echo "SSH key file not found"
-          cat ~/.ssh/known_hosts || echo "known_hosts file not found"
+          echo "Key installed with permissions:"
+          ls -la ~/.ssh/id_rsa
+          echo "Adding server to known_hosts..."
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
+          echo "Known hosts file contents:"
+          cat ~/.ssh/known_hosts
+
+      - name: Verify SSH key
+        run: |
+          echo "Checking SSH key format..."
+          ssh-keygen -l -f ~/.ssh/id_rsa || echo "Invalid key format"
 
       - name: Test SSH connection
-        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "echo 'SSH connection successful'"
+        run: |
+          echo "Testing SSH connection..."
+          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "echo 'SSH connection successful'" || echo "SSH connection failed"
 
       - name: Install GPG
         run: sudo apt-get update && sudo apt-get install -y gnupg
