@@ -89,20 +89,42 @@ jobs:
     environment: staging
     steps:
       - uses: actions/checkout@v3
-      - name: Setup SSH Key and Add to Known Hosts
+
+      - name: Create SSH directory
+        run: mkdir -p ~/.ssh
+
+      - name: Install SSH key
         run: |
-          mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+          ls -la ~/.ssh/id_rsa || echo "SSH key file not found"
+          cat ~/.ssh/known_hosts || echo "known_hosts file not found"
+
+      - name: Test SSH connection
+        run: ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "echo 'SSH connection successful'"
+
       - name: Install GPG
         run: sudo apt-get update && sudo apt-get install -y gnupg
+
       - name: Decrypt .env.gpg File
         env:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        run: echo $GPG_PASSPHRASE | gpg --quiet --batch --yes --decrypt --passphrase-fd 0 --output ./.env ./.env.gpg
-      - name: Transfer Repository to Remote Server (Including Decrypted .env)
-        run: rsync -avz -e "ssh -i ~/.ssh/id_rsa" ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/home/ubuntu/scraper/
+        run: |
+          if [ ! -f ./.env.gpg ]; then
+            echo ".env.gpg file not found"
+            exit 1
+          fi
+          echo $GPG_PASSPHRASE | gpg --quiet --batch --yes --decrypt --passphrase-fd 0 --output ./.env ./.env.gpg
+
+      - name: Transfer Repository to Remote Server
+        run: |
+          rsync -avz -e "ssh -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no" \
+          --exclude '.git' \
+          --exclude '.github' \
+          --exclude 'node_modules' \
+          ./ ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }}:/home/ubuntu/scraper/
+
       - name: Deploy to server
         uses: appleboy/ssh-action@master
         env:
@@ -115,14 +137,24 @@ jobs:
           script: |
             set -e
 
-            echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin
+            echo "Starting deployment..."
+
+            # Docker login with error handling
+            if ! echo "${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}" | docker login -u ${{ secrets.DOCKER_HUB_USERNAME }} --password-stdin; then
+              echo "Failed to log in to Docker Hub"
+              exit 1
+            fi
 
             cd /home/ubuntu/scraper/
-            docker pull $DOCKER_IMAGE
 
-            # Ensure scripts are executable (in case they are not already)
-            chmod +x install_docker.sh
-            chmod +x entrypoint.sh
+            # Pull Docker image with error handling
+            if ! docker pull $DOCKER_IMAGE; then
+              echo "Failed to pull Docker image"
+              exit 1
+            fi
+
+            # Make scripts executable
+            chmod +x install_docker.sh entrypoint.sh
 
             # Check if Docker Compose is installed
             if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
@@ -133,8 +165,11 @@ jobs:
               echo "Docker Compose already installed."
             fi
 
-            docker compose -f docker-compose-prod.yml down
+            # Stop and start services
+            docker compose -f docker-compose-prod.yml down || echo "No running containers to stop"
             docker compose -f docker-compose-prod.yml up -d
+
+            echo "Deployment completed successfully"
 
   cleanup:
     needs: deploy
