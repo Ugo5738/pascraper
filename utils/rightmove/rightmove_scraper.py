@@ -11,11 +11,12 @@ from utils.util_funcs import send_progress_update
 
 
 class RightmoveScraper(BaseScraper):
-    def __init__(self, url, callback_url=None, job_id=None):
+    def __init__(self, url, callback_url=None, job_id=None, user_phone_number=None):
         super().__init__(url)
         self.init_selenium()
         self.callback_url = callback_url
         self.job_id = job_id
+        self.user_phone_number = user_phone_number
         self.wait = WebDriverWait(self.driver, 10)
         self.soup = None  # Will be set after loading each page
         self.listing_type = None
@@ -33,6 +34,7 @@ class RightmoveScraper(BaseScraper):
                     "message": message,
                     "progress": progress,
                 },
+                self.user_phone_number,
             )
 
     def scrape_property(self):

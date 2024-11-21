@@ -49,13 +49,19 @@ def save_property_data(data, source, url):
         raise
 
 
-def send_progress_update(callback_url, job_id, progress_data):
+def send_progress_update(
+    callback_url,
+    job_id,
+    progress_data,
+    user_phone_number,
+):
     try:
         response = requests.post(
             callback_url,
             json={
                 "job_id": job_id,
                 "progress": progress_data,
+                "user_phone_number": user_phone_number,
             },
             verify=False,
         )
