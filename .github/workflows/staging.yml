@@ -90,37 +90,27 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Debug SSH setup
+      - name: Set up SSH
+        env:
+          SSH_AUTH_SOCK: /tmp/ssh_agent.sock
         run: |
-          echo "Creating .ssh directory..."
+          # Create .ssh directory with correct permissions
           mkdir -p ~/.ssh
-          echo "Setting directory permissions..."
           chmod 700 ~/.ssh
-          echo "Directory created with permissions:"
-          ls -la ~/.ssh
 
-      - name: Install SSH key
-        run: |
-          echo "Writing SSH key..."
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" | base64 -d > ~/.ssh/id_rsa
-          echo "Setting key permissions..."
+          # Write the SSH key file
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          echo "Key installed with permissions:"
-          ls -la ~/.ssh/id_rsa
-          echo "Adding server to known_hosts..."
-          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts 2>/dev/null
-          echo "Known hosts file contents:"
-          cat ~/.ssh/known_hosts
 
-      - name: Verify SSH key
-        run: |
-          echo "Checking SSH key format..."
-          ssh-keygen -l -f ~/.ssh/id_rsa || echo "Invalid key format"
+          # Start SSH agent
+          ssh-agent -a $SSH_AUTH_SOCK > /dev/null
+          ssh-add ~/.ssh/id_rsa
 
-      - name: Test SSH connection
-        run: |
-          echo "Testing SSH connection..."
-          ssh -v -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "echo 'SSH connection successful'" || echo "SSH connection failed"
+          # Add host to known hosts
+          ssh-keyscan -H ${{ secrets.SERVER_IP }} >> ~/.ssh/known_hosts
+
+          # Test SSH connection
+          ssh -o StrictHostKeyChecking=no -T ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_IP }} "echo 'SSH connection test successful'"
 
       - name: Install GPG
         run: sudo apt-get update && sudo apt-get install -y gnupg
