@@ -30,7 +30,7 @@ def start_scraping_job(job_id):
                 "message": "Fetching details",
                 "progress": 10,
             },
-            job.user_phone_number,
+            job.phone_number,
         )
 
         # Run the appropriate scraper
@@ -39,7 +39,7 @@ def start_scraping_job(job_id):
                 job.url,
                 callback_url=job.callback_url,
                 job_id=job.id,
-                user_phone_number=job.user_phone_number,
+                phone_number=job.phone_number,
             )
             logger.info("Rightmove Scraper initiated...")
         elif job.source == "onthemarket":
@@ -47,7 +47,7 @@ def start_scraping_job(job_id):
                 job.url,
                 callback_url=job.callback_url,
                 job_id=job.id,
-                user_phone_number=job.user_phone_number,
+                phone_number=job.phone_number,
             )
             logger.info("OnTheMarket Scraper initiated...")
         else:
@@ -65,7 +65,7 @@ def start_scraping_job(job_id):
                 "message": "Fetching completed",
                 "progress": 100,
             },
-            job.user_phone_number,
+            job.phone_number,
         )
 
         # Save the scraped data
@@ -81,7 +81,7 @@ def start_scraping_job(job_id):
             "job_id": job.id,
             "property_id": job.property_id,  # Use the original property_id from the main app
             "task_id": job.task_id,
-            "user_phone_number": job.user_phone_number,
+            "phone_number": job.phone_number,
         }
 
         logger.info(
@@ -108,5 +108,5 @@ def start_scraping_job(job_id):
                 "message": str(e),
                 "progress": 0,
             },
-            job.user_phone_number,
+            job.phone_number,
         )

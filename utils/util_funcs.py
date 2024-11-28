@@ -53,7 +53,7 @@ def send_progress_update(
     callback_url,
     job_id,
     progress_data,
-    user_phone_number,
+    phone_number,
 ):
     try:
         response = requests.post(
@@ -61,7 +61,7 @@ def send_progress_update(
             json={
                 "job_id": job_id,
                 "progress": progress_data,
-                "user_phone_number": user_phone_number,
+                "phone_number": phone_number,
             },
             verify=False,
         )

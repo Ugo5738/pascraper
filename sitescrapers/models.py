@@ -66,7 +66,7 @@ class ScrapingJob(models.Model):
         max_length=20, choices=JOB_STATUS_CHOICES, default="pending"
     )
     callback_url = models.URLField(null=True, blank=True)
-    user_phone_number = models.CharField(max_length=20)
+    phone_number = models.CharField(max_length=20)
     property_id = models.IntegerField(null=True, blank=True)  # ID from main app
     scraped_property_id = models.IntegerField(
         null=True, blank=True

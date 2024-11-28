@@ -14,12 +14,12 @@ logger = configure_logger(__name__)
 
 
 class OnTheMarketScraper(BaseScraper):
-    def __init__(self, url, callback_url=None, job_id=None, user_phone_number=None):
+    def __init__(self, url, callback_url=None, job_id=None, phone_number=None):
         super().__init__(url)
         self.init_selenium()
         self.callback_url = callback_url
         self.job_id = job_id
-        self.user_phone_number = user_phone_number
+        self.phone_number = phone_number
         match = re.search(r"/details/(\d+)", url)
         if match:
             self.property_id = match.group(1)
@@ -46,7 +46,7 @@ class OnTheMarketScraper(BaseScraper):
                     "message": message,
                     "progress": progress,
                 },
-                self.user_phone_number,
+                self.phone_number,
             )
 
     def scrape_property(self):
