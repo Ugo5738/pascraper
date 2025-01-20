@@ -105,3 +105,62 @@ class ScrapingJobDataView(APIView):
             return Response(
                 {"error": "Property not found."}, status=status.HTTP_404_NOT_FOUND
             )
+
+
+class StandaloneScrapeView(APIView):
+    """
+    This endpoint performs a one-time scrape of a given URL
+    and returns the data immediately, without scheduling a job or using Celery.
+    """
+
+    def post(self, request, *args, **kwargs):
+        """
+        POST /scrape-once/
+        Body params:
+            {
+                "url": "https://www.rightmove.co.uk/properties/12345678",
+                "source": "rightmove"  # Optional if you want to handle logic
+            }
+        """
+        url = request.data.get("url")
+        source = request.data.get("source", "rightmove")
+
+        if not url:
+            return Response(
+                {"error": "URL is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # 1) Choose the appropriate scraper based on `source` or fallback
+        if source.lower() == "rightmove":
+            scraper = RightmoveScraper(url)
+        elif source.lower() == "zoopla":
+            scraper = ZooplaScraper(url)
+        elif source.lower() == "onthemarket":
+            scraper = OnTheMarketScraper(url)
+        else:
+            # You could auto-detect or handle default logic here
+            # For simplicity, defaulting to RightmoveScraper as an example
+            scraper = RightmoveScraper(url)
+
+        try:
+            # 2) Scrape data synchronously
+            scraped_data = scraper.scrape_property()  # or `.scrape()` if Zoopla
+
+            # # 3) (Optional) Save the data to Property model
+            # property_instance = save_property_data(scraped_data, source, url)
+
+            # 4) Return the scraped data directly to the client
+            return Response(
+                {
+                    "message": "Scrape successful.",
+                    "scraped_data": scraped_data,
+                    # "property_id": property_instance.id,
+                },
+                status=status.HTTP_200_OK,
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )

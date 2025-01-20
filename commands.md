@@ -5,7 +5,7 @@
 ### Backend Server
 
 ```
-ssh -i keys/scraper.pem ubuntu@54.234.138.138
+ssh -i keys/scraper.pem ubuntu@100.26.21.105
 ```
 
 Purpose: Login to the backend server using SSH with a specified key file.

@@ -12,4 +12,7 @@ urlpatterns = [
         views.ScrapingJobDataView.as_view(),
         name="scraping-job-data",
     ),
+    path(
+        "scrape-once/", views.StandaloneScrapeView.as_view(), name="standalone-scrape"
+    ),
 ]
