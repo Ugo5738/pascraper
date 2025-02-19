@@ -265,4 +265,7 @@ os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 # ==> ANTHROPIC
 ANTHROPIC_API_KEY = config("ANTHROPIC_API_KEY")
+
+# BACKUP_DB_SERVICE
+BACKUP_SERVICE_URL = config("BACKUP_SERVICE_URL")
 # ================================ CUSTOM VARIABLES =======================================
