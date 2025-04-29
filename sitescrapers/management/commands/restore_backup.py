@@ -9,7 +9,7 @@ class Command(BaseCommand):
     help = "Restores ScrapingJob data from the central backup service."
 
     def handle(self, *args, **kwargs):
-        backup_url = f"{settings.BACKUP_SERVICE_URL}/api/backup/scraping-job/"
+        backup_url = f"{settings.BACKUP_SERVICE_URL}/api/sdb/scraping-job/"
         response = requests.get(backup_url, timeout=10)
         response.raise_for_status()
         jobs = response.json()
