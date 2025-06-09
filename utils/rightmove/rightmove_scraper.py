@@ -131,7 +131,9 @@ class RightmoveScraper(BaseScraper):
 
             if src and ("_FLP_" in src or pattern.search(alt)):
                 floorplans.append(src)
-        return floorplans
+
+        # Return a list of unique floorplan URLs
+        return list(set(floorplans))
 
     def get_property_images(self):
         images = []
