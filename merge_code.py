@@ -15,6 +15,8 @@ def should_exclude(file_path):
     # Exclude files in any directory named "staticfiles"
     if "staticfiles" in file_path.split(os.sep):
         return True
+    if "__pycache__" in file_path.split(os.sep):
+        return True
     # Add more exclusion rules here if necessary
     return False
 

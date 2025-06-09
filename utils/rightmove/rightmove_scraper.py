@@ -114,14 +114,22 @@ class RightmoveScraper(BaseScraper):
         self.driver.get(self.floor_image_url)
         self.wait_for_page_load()
 
+        # Add a short delay to ensure JavaScript-rendered content is available
+        time.sleep(2)
+
         floorplan_soup = BeautifulSoup(self.driver.page_source, "html.parser")
 
         # Find the floorplan images
         pattern = re.compile(r"(floorplan|floor|basement|penthouse)", re.IGNORECASE)
-        img_tags = floorplan_soup.find_all("img", alt=pattern)
+
+        # Find all image tags on the page to evaluate them
+        img_tags = floorplan_soup.find_all("img")
+
         for img in img_tags:
-            src = img.get("src")
-            if src and "media" in src:
+            src = img.get("src", "")  # Use default "" to prevent errors
+            alt = img.get("alt", "")  # Use default "" to prevent errors
+
+            if src and ("_FLP_" in src or pattern.search(alt)):
                 floorplans.append(src)
         return floorplans
 

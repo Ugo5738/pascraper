@@ -1,3 +1,1196 @@
+# utils/util_funcs.py
+import re
+from decimal import Decimal
+
+import requests
+
+from pascraper.config.logging_config import configure_logger
+from sitescrapers.models import Property
+
+logger = configure_logger(__name__)
+
+
+def save_property_data(data, source, url):
+    try:
+        # Clean and convert the price
+        price_str = data["price"]
+        # Remove currency symbols and commas
+        price_str = re.sub(r"[^\d.]", "", price_str)
+        # Convert to Decimal
+        price = Decimal(price_str) if price_str else None
+
+        property_instance, created = Property.objects.update_or_create(
+            url=url,
+            defaults={
+                "source": source,
+                "address": data.get("address"),
+                "price": price,
+                "bedrooms": data.get("bedrooms"),
+                "bathrooms": data.get("bathrooms"),
+                "size": data.get("size"),
+                "house_type": data.get("house_type"),
+                "agent": data.get("agent"),
+                "description": data.get("description"),
+                "time_on_market": data.get("time_on_market"),
+                "features": data.get("features"),
+                "listing_type": data.get("listing_type"),
+                "images": data.get("images"),
+                "floorplans": data.get("floorplans"),
+            },
+        )
+
+        if created:
+            logger.info(f"New property created with ID: {property_instance.id}")
+        else:
+            logger.info(f"Existing property updated with ID: {property_instance.id}")
+
+        return property_instance
+    except Exception as e:
+        logger.info(f"Error saving property data: {str(e)}")
+        raise
+
+
+def send_progress_update(
+    callback_url,
+    job_id,
+    progress_data,
+    phone_number,
+):
+    try:
+        response = requests.post(
+            callback_url,
+            json={
+                "job_id": job_id,
+                "progress": progress_data,
+                "phone_number": phone_number,
+            },
+            verify=False,
+        )
+        response.raise_for_status()
+        logger.info(f"Progress update sent: {progress_data}")
+    except requests.RequestException as e:
+        logger.error(f"Failed to send progress update: {e}")
+
+
+# utils/__init__.py
+
+
+# utils/base_scraper.py
+# base_scraper.py
+
+import os
+import time
+
+import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+
+
+class BaseScraper:
+    def __init__(self, url):
+        self.base_url = url
+        self.driver = None
+
+    def get_html_content(self):
+        """
+        Fetch the HTML content of the page using requests.
+        """
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        try:
+            response = requests.get(self.url, headers=headers)
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching URL: {e}")
+            return None
+
+    def init_selenium(self):
+        """
+        Initialize Selenium WebDriver.
+        """
+        options = Options()
+        options.add_argument("--headless")  # Run in headless mode
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+
+        # Specify the path to the Chromium executable
+        options.binary_location = "/usr/bin/chromium"
+
+        # Specify the path to the Chromium Driver
+        service = Service("/usr/bin/chromedriver")
+
+        self.driver = webdriver.Chrome(service=service, options=options)
+        self.driver.get(self.base_url)
+
+        # Let the page load completely
+        time.sleep(5)  # Adjust as needed to ensure full page load
+
+        # Scroll to load more images (optional)
+        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+
+    def quit_selenium(self):
+        """
+        Quit the Selenium WebDriver.
+        """
+        if self.driver:
+            self.driver.quit()
+
+    def download_images(self, image_urls, save_folder="property_images"):
+        """
+        Download and save images to the local directory.
+        """
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        for idx, img_url in enumerate(image_urls):
+            try:
+                img_data = requests.get(img_url).content
+                img_name = os.path.join(save_folder, f"image_{idx}.jpg")
+                with open(img_name, "wb") as img_file:
+                    img_file.write(img_data)
+                print(f"Downloaded: {img_name}")
+            except requests.exceptions.RequestException as e:
+                print(f"Failed to download {img_url}: {e}")
+
+
+# utils/d.json
+[
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_19_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_05_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_09_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_07_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_01_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_13_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_11_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_14_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_02_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_06_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_20_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_10_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_08_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_17_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_04_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_12_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_18_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_03_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_00_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_21_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_15_0000.jpeg",
+  "https://media.rightmove.co.uk/44k/43769/153510812/43769_P289417_IMG_16_0000.jpeg"
+]
+
+
+# utils/rightmove/rightmove_search_scraper.py
+import urllib.parse
+
+from bs4 import BeautifulSoup
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from utils.base_scraper import BaseScraper
+
+
+class RightmoveSearchScraper(BaseScraper):
+    def __init__(self, search_params):
+        self.search_params = search_params
+        self.base_search_url = (
+            "https://www.rightmove.co.uk/property-for-sale/find.html?"
+        )
+        super().__init__(self.construct_search_url())
+        self.driver = None
+
+    def construct_search_url(self, index=0):
+        params = {
+            "locationIdentifier": self.search_params.get("location", ""),
+            "minPrice": self.search_params.get("min_price", ""),
+            "maxPrice": self.search_params.get("max_price", ""),
+            "minBedrooms": self.search_params.get("min_bedrooms", ""),
+            "index": index,
+        }
+        return self.base_search_url + urllib.parse.urlencode(params)
+
+    def scrape_search_results(self):
+        self.init_selenium()
+        property_urls = []
+        try:
+            index = 0
+            while True:
+                url = self.construct_search_url(index)
+                self.driver.get(url)
+                self.wait_for_page_load()
+                soup = BeautifulSoup(self.driver.page_source, "html.parser")
+                urls = self.extract_property_urls(soup)
+                if not urls:
+                    break
+                property_urls.extend(urls)
+                if not self.has_next_page(soup):
+                    break
+                index += 24
+        finally:
+            self.quit_selenium()
+        return property_urls
+
+    def extract_property_urls(self, soup):
+        urls = []
+        for link in soup.select('a.propertyCard-link[href^="/properties/"]'):
+            href = link.get("href")
+            urls.append(f"https://www.rightmove.co.uk{href}")
+        return urls
+
+    def has_next_page(self, soup):
+        next_button = soup.find("button", {"class": "pagination-direction--next"})
+        return next_button and "disabled" not in next_button.get("class", [])
+
+    def wait_for_page_load(self):
+        WebDriverWait(self.driver, 10).until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, ".propertyCard"))
+        )
+
+
+# utils/rightmove/__init__.py
+
+
+# utils/rightmove/rightmove_scraper.py
+import re
+import time
+
+from bs4 import BeautifulSoup
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from utils.base_scraper import BaseScraper
+from utils.util_funcs import send_progress_update
+
+
+class RightmoveScraper(BaseScraper):
+    def __init__(self, url, callback_url=None, job_id=None, phone_number=None):
+        super().__init__(url)
+        self.init_selenium()
+        self.callback_url = callback_url
+        self.job_id = job_id
+        self.phone_number = phone_number
+        self.wait = WebDriverWait(self.driver, 10)
+        self.soup = None  # Will be set after loading each page
+        self.listing_type = None
+        self.image_url = None
+        self.floor_image_url = None
+
+    def send_progress(self, message, current_step, total_steps, stage="First Step"):
+        if self.callback_url and self.job_id:
+            progress = (current_step / total_steps) * 100
+            send_progress_update(
+                self.callback_url,
+                self.job_id,
+                {
+                    "stage": stage,
+                    "message": message,
+                    "progress": progress,
+                },
+                self.phone_number,
+            )
+
+    def scrape_property(self):
+        data = {}
+        total_steps = 4  # Adjust based on the number of steps in the process
+        current_step = 0
+
+        # Step 1: Navigate to the main property page
+        current_step += 1
+        self.send_progress(
+            "Navigating to main property page", current_step, total_steps
+        )
+        self.driver.get(self.base_url)
+        self.wait_for_page_load()
+        self.soup = BeautifulSoup(self.driver.page_source, "lxml")
+
+        # Determine the listing type based on page content
+        self.listing_type = self.get_listing_type()
+
+        # Adjust image and floorplan URLs based on listing type
+        self.image_url = (
+            f"{self.base_url}#/media?id=media0&ref=photoCollage&channel=RES_BUY"
+        )
+        self.floor_image_url = (
+            f"{self.base_url}#/floorplan?activePlan=1&channel=RES_BUY"
+        )
+
+        # Step 2: Extract data from the main page
+        current_step += 1
+        self.send_progress(
+            "Taking a look at the main page data", current_step, total_steps
+        )
+        data["address"] = self.get_address()
+        data["price"] = self.get_price()
+        data["bedrooms"] = self.get_bedrooms()
+        data["bathrooms"] = self.get_bathrooms()
+        data["size"] = self.get_size()
+        data["house_type"] = self.get_house_type()
+        data["agent"] = self.get_agent()
+        data["description"] = self.get_description()
+        data["time_on_market"] = self.get_time_on_market()
+        data["features"] = self.get_features()
+        data["listing_type"] = self.listing_type
+
+        # Step 3: Navigate to the images page and extract images
+        current_step += 1
+        self.send_progress(
+            "Taking a look at the property images", current_step, total_steps
+        )
+        data["images"] = self.get_property_images()
+
+        # Step 4: Navigate to the floorplan page and extract floorplans
+        current_step += 1
+        self.send_progress("Taking a look at the floorplans", current_step, total_steps)
+        data["floorplans"] = self.get_floorplans()
+
+        return data
+
+    def wait_for_page_load(self):
+        # Wait until the body tag is loaded
+        self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        # Optionally, wait for specific elements that you know are on the page
+        time.sleep(1)  # Small delay to ensure all elements are loaded
+
+    def get_images(self, soup):
+        images = []
+        image_tags = soup.find_all("img")
+        for img_tag in image_tags:
+            img_url = img_tag.get("src")
+            if img_url and img_url not in images:
+                images.append(img_url)
+        return images
+
+    def get_floorplans(self):
+        floorplans = []
+        # Navigate to the floorplan page
+        self.driver.get(self.floor_image_url)
+        self.wait_for_page_load()
+
+        floorplan_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+
+        # Find the floorplan images
+        pattern = re.compile(r"(floorplan|floor|basement|penthouse)", re.IGNORECASE)
+        img_tags = floorplan_soup.find_all("img", alt=pattern)
+        for img in img_tags:
+            src = img.get("src")
+            if src and "media" in src:
+                floorplans.append(src)
+        return floorplans
+
+    def get_property_images(self):
+        images = []
+        # Navigate to the images page
+        self.driver.get(self.image_url)
+        self.wait_for_page_load()
+
+        images_soup = BeautifulSoup(self.driver.page_source, "html.parser")
+
+        # Find all image elements
+        img_tags = images_soup.find_all("img")
+        for img in img_tags:
+            src = img.get("src")
+            if src and "media" in src and "max_" not in src:
+                images.append(src)
+        return list(set(images))
+
+    def get_price(self):
+        price_tag = self.soup.find("div", class_="_1gfnqJ3Vtd1z40MlC0MzXu")
+        if price_tag:
+            price_span = price_tag.find("span")
+            if price_span:
+                return price_span.get_text(strip=True)
+        return None
+
+    def get_bedrooms(self):
+        return self.get_feature_value("BEDROOMS")
+
+    def get_bathrooms(self):
+        return self.get_feature_value("BATHROOMS")
+
+    def get_size(self):
+        return self.get_feature_value("SIZE")
+
+    def get_house_type(self):
+        return self.get_feature_value("PROPERTY TYPE")
+
+    def get_feature_value(self, feature_name):
+        dt_tags = self.soup.find_all("dt")
+        for dt in dt_tags:
+            span = dt.find("span")
+            if span and feature_name in span.get_text():
+                dd = dt.find_next_sibling("dd")
+                if dd:
+                    return dd.get_text(strip=True)
+        return None
+
+    def get_address(self):
+        address_tag = self.soup.find("h1", itemprop="streetAddress")
+        if address_tag:
+            return address_tag.get_text(strip=True)
+        return None
+
+    def get_agent(self):
+        agent_div = self.soup.find("div", class_="aboutAgent")
+        if agent_div:
+            h3_tag = agent_div.find("h3")
+            if h3_tag:
+                return h3_tag.get_text(strip=True)
+        return None
+
+    def get_description(self):
+        h2_tag = self.soup.find("h2", text=re.compile("Description", re.I))
+        if h2_tag:
+            desc_div = h2_tag.find_next_sibling("div")
+            if desc_div:
+                return desc_div.get_text(strip=True)
+        return None
+
+    def get_time_on_market(self):
+        # Search for strings like "Added on" or "Reduced on" to find the date
+        date_text = self.soup.find(string=re.compile("(Added on|Reduced on)", re.I))
+        if date_text:
+            return date_text.strip()
+        else:
+            return None
+
+    def get_features(self):
+        features_list = []
+        h2_tag = self.soup.find("h2", text=re.compile("Key features", re.I))
+        if h2_tag:
+            ul_tag = h2_tag.find_next_sibling("ul")
+            if ul_tag:
+                li_tags = ul_tag.find_all("li")
+                for li in li_tags:
+                    features_list.append(li.get_text(strip=True))
+        features_text = "\n".join(features_list)
+        return features_text
+
+    def get_listing_type(self):
+        # Check for indicators specific to lettings
+        if self.soup.find("h2", text=re.compile("Letting details", re.I)):
+            return "letting"
+        if self.soup.find(string=re.compile("Tenancy info", re.I)):
+            return "letting"
+        if self.soup.find(string=re.compile("Deposit", re.I)):
+            return "letting"
+        if self.soup.find("dt", text=re.compile("Let available date", re.I)):
+            return "letting"
+
+        # Check for indicators specific to sales
+        if self.soup.find("dt", text=re.compile("Tenure", re.I)):
+            return "sale"
+        if self.soup.find(string=re.compile("Freehold|Leasehold", re.I)):
+            return "sale"
+        if self.soup.find(
+            string=re.compile("Offers in region of|Guide Price|Offers over", re.I)
+        ):
+            return "sale"
+
+        # Default to 'sale' if no specific indicators are found
+        return "sale"
+
+
+# utils/zoopla/__init__.py
+
+
+# utils/zoopla/zoopla_scraper.py
+import re
+import time
+
+from bs4 import BeautifulSoup
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from utils.base_scraper import BaseScraper
+
+
+class ZooplaScraper(BaseScraper):
+    def __init__(self, url):
+        super().__init__(url)
+        self.init_selenium()
+        self.wait = WebDriverWait(self.driver, 20)  # Increased wait time
+        self.soup = None  # Will be set after loading each page
+
+    def scrape_property(self):
+        data = {}
+
+        # Navigate to the main property page
+        self.driver.get(self.base_url)
+        self.wait_for_page_load()
+        self.handle_cookies_popup()
+        self.soup = BeautifulSoup(self.driver.page_source, "lxml")
+
+        # Extract data from the main page
+        data["address"] = self.get_address()
+        data["price"] = self.get_price()
+        data["bedrooms"] = self.get_bedrooms()
+        data["bathrooms"] = self.get_bathrooms()
+        data["size"] = self.get_size()
+        data["house_type"] = self.get_house_type()
+        data["agent"] = self.get_agent()
+        data["description"] = self.get_description()
+        data["images"] = self.get_property_images()
+        data["floorplans"] = self.get_floorplans()
+
+        self.quit_selenium()
+        return data
+
+    def wait_for_page_load(self):
+        # Wait until the main content is loaded
+        self.wait.until(
+            EC.presence_of_element_located(
+                (By.CSS_SELECTOR, "div[data-testid='listing-details-page']")
+            )
+        )
+        time.sleep(1)  # Small delay to ensure all elements are loaded
+
+    def handle_cookies_popup(self):
+        # Handle the cookies acceptance popup if it appears
+        try:
+            accept_button = self.wait.until(
+                EC.element_to_be_clickable(
+                    (By.XPATH, "//button[contains(text(), 'Accept all cookies')]")
+                )
+            )
+            accept_button.click()
+        except Exception:
+            pass  # If the popup doesn't appear, proceed
+
+    def get_price(self):
+        price_tag = self.soup.find("p", attrs={"data-testid": "price"})
+        if price_tag:
+            return price_tag.get_text(strip=True)
+        return None
+
+    def get_address(self):
+        address_tag = self.soup.find("address", attrs={"data-testid": "address-label"})
+        if address_tag:
+            return address_tag.get_text(strip=True)
+        return None
+
+    def get_bedrooms(self):
+        return self.get_feature_value("Bedrooms")
+
+    def get_bathrooms(self):
+        return self.get_feature_value("Bathrooms")
+
+    def get_size(self):
+        # Size may not always be present
+        size_value = self.get_feature_value("sq. ft")
+        if size_value:
+            return size_value
+        return None
+
+    def get_feature_value(self, feature_name):
+        # Find all property features
+        features_section = self.soup.find(
+            "div", attrs={"data-testid": "listing-summary-details-heading"}
+        )
+        if features_section:
+            feature_items = features_section.find_next("div").find_all(
+                "div", recursive=False
+            )
+            for item in feature_items:
+                text = item.get_text(separator=" ", strip=True)
+                if feature_name in text:
+                    # Extract the number preceding the feature name
+                    match = re.search(r"(\d+)\s*" + re.escape(feature_name), text, re.I)
+                    if match:
+                        return match.group(1)
+        return None
+
+    def get_house_type(self):
+        # Extract house type from the title
+        title_tag = self.soup.find("p", {"data-testid": "title-label"})
+        if title_tag:
+            title_text = title_tag.get_text(strip=True)
+            # Format is usually '1 bed flat to rent'
+            match = re.search(r"\d+\s+bed\s+(.+?)\s+to\s+rent", title_text, re.I)
+            if match:
+                return match.group(1).strip()
+        return None
+
+    def get_agent(self):
+        agent_tag = self.soup.find("p", class_=re.compile(r"^_1fnpa5a3"))
+        if agent_tag:
+            return agent_tag.get_text(strip=True)
+        return None
+
+    def get_description(self):
+        desc_div = self.soup.find("div", {"data-testid": "listing_description"})
+        if desc_div:
+            paragraphs = desc_div.find_all("p")
+            description_text = "\n".join([p.get_text(strip=True) for p in paragraphs])
+            if description_text:
+                return description_text
+            # Fallback to any text within the div
+            return desc_div.get_text(separator="\n", strip=True)
+        return None
+
+    def get_property_images(self):
+        images = []
+        # Find the gallery section
+        gallery_section = self.soup.find(
+            "section", {"aria-labelledby": "listing-gallery-heading"}
+        )
+        if gallery_section:
+            # Find all images within the gallery
+            img_tags = gallery_section.find_all(
+                "img", {"class": re.compile(r"^_1rk40755")}
+            )
+            for img_tag in img_tags:
+                img_src = img_tag.get("src")
+                if img_src and img_src not in images:
+                    images.append(img_src)
+        return images
+
+    def get_floorplans(self):
+        floorplans = []
+        # Find the section with floor plans
+        floorplan_heading = self.soup.find("h3", string=re.compile("Floor plans", re.I))
+        if floorplan_heading:
+            floorplan_div = floorplan_heading.find_next("div")
+            if floorplan_div:
+                img_tags = floorplan_div.find_all("img")
+                for img_tag in img_tags:
+                    img_src = img_tag.get("src")
+                    if img_src and img_src not in floorplans:
+                        floorplans.append(img_src)
+        return floorplans
+
+
+# utils/onthemarket/oscraper.py
+import os
+import re
+import time
+
+import requests
+from bs4 import BeautifulSoup
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+
+class BaseScraper:
+    def __init__(self, url):
+        self.base_url = url
+        self.driver = None
+
+    def get_html_content(self):
+        """
+        Fetch the HTML content of the page using requests.
+        """
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
+        try:
+            response = requests.get(self.url, headers=headers)
+            response.raise_for_status()
+            return response.text
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching URL: {e}")
+            return None
+
+    def init_selenium(self):
+        """
+        Initialize Selenium WebDriver.
+        """
+        options = Options()
+        options.add_argument("--headless")  # Run in headless mode
+        options.add_argument("--no-sandbox")
+        options.add_argument("--disable-dev-shm-usage")
+        options.add_argument("--disable-gpu")
+        options.add_argument("--window-size=1920,1080")
+        options.add_argument("--disable-features=VizDisplayCompositor")
+
+        # Specify the path to the Chromium executable
+        options.binary_location = "/usr/bin/chromium"
+
+        # Specify the path to the Chromium Driver
+        service = Service("/usr/bin/chromedriver")
+
+        self.driver = webdriver.Chrome(service=service, options=options)
+        self.driver.get(self.base_url)
+
+        # Let the page load completely
+        time.sleep(5)  # Adjust as needed to ensure full page load
+
+        # Scroll to load more images (optional)
+        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(2)
+
+    def quit_selenium(self):
+        """
+        Quit the Selenium WebDriver.
+        """
+        if self.driver:
+            self.driver.quit()
+
+    def download_images(self, image_urls, save_folder="property_images"):
+        """
+        Download and save images to the local directory.
+        """
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        for idx, img_url in enumerate(image_urls):
+            try:
+                img_data = requests.get(img_url).content
+                img_name = os.path.join(save_folder, f"image_{idx}.jpg")
+                with open(img_name, "wb") as img_file:
+                    img_file.write(img_data)
+                print(f"Downloaded: {img_name}")
+            except requests.exceptions.RequestException as e:
+                print(f"Failed to download {img_url}: {e}")
+
+
+class OnTheMarketScraper(BaseScraper):
+    def __init__(self, url):
+        super().__init__(url)
+        self.init_selenium()
+        match = re.search(r"/details/(\d+)", url)
+        if match:
+            self.property_id = match.group(1)
+            self.image_url = (
+                f"https://www.onthemarket.com/details/{self.property_id}/#/photos/1"
+            )
+            self.floorplan_url = (
+                f"https://www.onthemarket.com/details/{self.property_id}/#/floorplans/1"
+            )
+        else:
+            raise ValueError("Invalid OnTheMarket URL format: Property ID not found.")
+
+        self.wait = WebDriverWait(self.driver, 10)
+        self.soup = None  # Will be set after loading each page
+
+    def scrape_property(self):
+        data = {}
+
+        # Navigate to the main property page
+        self.driver.get(self.base_url)
+        self.wait_for_page_load()
+        self.soup = BeautifulSoup(self.driver.page_source, "lxml")
+
+        # Extract data from the main page
+        # send_progress_update()
+        data["address"] = self.get_address()
+        data["price"] = self.get_price()
+        data["bedrooms"] = self.get_bedrooms()
+        data["bathrooms"] = self.get_bathrooms()
+        data["size"] = self.get_size()
+        data["house_type"] = self.get_house_type()
+        data["agent"] = self.get_agent()
+        data["description"] = self.get_description()
+        data["features"] = self.get_features()
+
+        # Extract images and floorplans
+        data["floorplans"] = self.get_floorplans()
+        data["images"] = self.get_property_images()
+
+        print(data)
+        return data
+
+    def wait_for_page_load(self):
+        # Wait until the body tag is loaded
+        self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        time.sleep(2)  # Small delay to ensure all elements are loaded
+
+    def get_price(self):
+        price_tag = self.soup.find("div", class_="otm-Price")
+        if price_tag:
+            price_span = price_tag.find("a", class_="price")
+            if price_span:
+                return price_span.get_text(strip=True)
+        return None
+
+    def get_address(self):
+        address_tag = self.soup.find(
+            "div", class_="text-slate h4 font-normal leading-none font-heading"
+        )
+        if address_tag:
+            return address_tag.get_text(strip=True)
+        return None
+
+    def get_bedrooms(self):
+        return self.get_feature_value("beds")
+
+    def get_bathrooms(self):
+        return self.get_feature_value("bath")
+
+    def get_size(self):
+        size_div = self.soup.find("div", string=re.compile(r"\d+\s*(sq ft|sq m)", re.I))
+        if size_div:
+            return size_div.get_text(strip=True)
+        return None
+
+    def get_house_type(self):
+        property_type_div = self.soup.find("div", class_="otm-PropertyIcon")
+        if property_type_div:
+            return property_type_div.get_text(strip=True)
+        return None
+
+    def get_agent(self):
+        agent_section = self.soup.find("section", class_="agent-website-button")
+        if agent_section:
+            agent_name = agent_section.find("a")
+            if agent_name:
+                return agent_name.get_text(strip=True)
+        return None
+
+    def get_description(self):
+        description_section = self.soup.find("section", class_="property-description")
+        if description_section:
+            description_div = description_section.find(
+                "div", class_="text-base text-slate"
+            )
+            if description_div:
+                return description_div.get_text(separator="\n", strip=True)
+        return None
+
+    def get_features(self):
+        features_list = []
+        features_section = self.soup.find("section", class_="otm-FeaturesList")
+        if features_section:
+            feature_items = features_section.find_all("li")
+            for item in feature_items:
+                features_list.append(item.get_text(strip=True))
+        return features_list
+
+    def get_feature_value(self, feature_icon_name):
+        features = self.soup.find("div", class_="otm-IconFeatures")
+        if features:
+            feature_items = features.find_all("div", class_="flex items-center")
+            for item in feature_items:
+                svg = item.find("svg", {"data-icon": feature_icon_name})
+                if svg:
+                    return item.get_text(strip=True)
+        return None
+
+    def get_floorplans(self):
+        floorplans = []
+        floorplan_section = self.soup.find("section", class_="floorplan")
+        if floorplan_section:
+            img_tags = floorplan_section.find_all("img")
+            for img in img_tags:
+                src = img.get("src")
+                if src and src not in floorplans:
+                    floorplans.append(src)
+        return floorplans
+
+    def get_property_images(self):
+        images = []
+        unique_images = set()
+
+        # Navigate to the image gallery page
+        self.driver.get(self.image_url)
+        self.wait_for_page_load()
+
+        # Wait for the page to fully load
+        time.sleep(2)  # Adjust as necessary
+
+        # Parse the page source
+        self.soup = BeautifulSoup(self.driver.page_source, "lxml")
+
+        # Find all 'li' elements with class 'slide'
+        image_elements = self.soup.find_all("li", class_="slide")
+        for li in image_elements:
+            picture_tag = li.find("picture")
+            if picture_tag:
+                img_tag = picture_tag.find("img")
+                if img_tag:
+                    src_img = img_tag.get("src")
+                    if src_img and "logo" not in src_img:
+                        # Normalize the URL by removing the extension
+                        base_url = src_img.rsplit(".", 1)[0]
+                        if base_url not in unique_images:
+                            unique_images.add(base_url)
+                            images.append(src_img)
+
+        return images
+
+    def get_floorplans(self):
+        floorplans = []
+
+        self.driver.get(self.floorplan_url)
+        self.wait_for_page_load()
+
+        # Give time for the page to fully load
+        time.sleep(2)  # Adjust as necessary
+
+        # Parse the page source
+        soup = BeautifulSoup(self.driver.page_source, "lxml")
+
+        # Find the carousel root for floorplans
+        carousel_root = soup.find("div", class_="carousel-root floorplans")
+        if carousel_root:
+            # Find all 'img' tags within the carousel with alt="Floorplan"
+            img_tags = carousel_root.find_all("img", alt="Floorplan")
+            for img in img_tags:
+                src = img.get("src")
+                if src and src not in floorplans:
+                    floorplans.append(src)
+        else:
+            print("Floorplan carousel not found.")
+
+        return floorplans
+
+
+def main():
+    url = "https://www.onthemarket.com/details/14627179/"
+
+    scraper = OnTheMarketScraper(url)
+    scraper.scrape_property()
+
+
+if __name__ == "__main__":
+    main()
+
+
+# utils/onthemarket/onthemarket_scraper.py
+import re
+import time
+
+from bs4 import BeautifulSoup
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
+
+from pascraper.config.logging_config import configure_logger
+from utils.base_scraper import BaseScraper
+from utils.util_funcs import send_progress_update
+
+logger = configure_logger(__name__)
+
+
+class OnTheMarketScraper(BaseScraper):
+    def __init__(self, url, callback_url=None, job_id=None, phone_number=None):
+        super().__init__(url)
+        self.init_selenium()
+        self.callback_url = callback_url
+        self.job_id = job_id
+        self.phone_number = phone_number
+        match = re.search(r"/details/(\d+)", url)
+        if match:
+            self.property_id = match.group(1)
+            self.image_url = (
+                f"https://www.onthemarket.com/details/{self.property_id}/#/photos/1"
+            )
+            self.floorplan_url = (
+                f"https://www.onthemarket.com/details/{self.property_id}/#/floorplans/1"
+            )
+        else:
+            raise ValueError("Invalid OnTheMarket URL format: Property ID not found.")
+
+        self.wait = WebDriverWait(self.driver, 10)
+        self.soup = None  # Will be set after loading each page
+
+    def send_progress(self, message, current_step, total_steps, stage="First Step"):
+        if self.callback_url and self.job_id:
+            progress = (current_step / total_steps) * 100
+            send_progress_update(
+                self.callback_url,
+                self.job_id,
+                {
+                    "stage": stage,
+                    "message": message,
+                    "progress": progress,
+                },
+                self.phone_number,
+            )
+
+    def scrape_property(self):
+        data = {}
+        total_steps = 4  # Adjust based on the number of steps in the process
+        current_step = 0
+
+        # Step 1: Navigate to the main property page
+        current_step += 1
+        self.send_progress(
+            "Navigating to main property page", current_step, total_steps
+        )
+        self.driver.get(self.base_url)
+        self.wait_for_page_load()
+        self.soup = BeautifulSoup(self.driver.page_source, "lxml")
+
+        # Step 2: Extract data from the main page
+        current_step += 1
+        self.send_progress(
+            "Taking a look at the main page data", current_step, total_steps
+        )
+        data["address"] = self.get_address()
+        data["price"] = self.get_price()
+        data["bedrooms"] = self.get_bedrooms()
+        data["bathrooms"] = self.get_bathrooms()
+        data["size"] = self.get_size()
+        data["house_type"] = self.get_house_type()
+        data["agent"] = self.get_agent()
+        data["description"] = self.get_description()
+        data["features"] = self.get_features()
+
+        # Step 3: Navigate to the images page and extract images
+        current_step += 1
+        self.send_progress(
+            "Taking a look at the property images", current_step, total_steps
+        )
+        data["images"] = self.get_property_images()
+
+        # Step 4: Navigate to the floorplan page and extract floorplans
+        current_step += 1
+        self.send_progress("Taking a look at the floorplans", current_step, total_steps)
+        data["floorplans"] = self.get_floorplans()
+
+        return data
+
+    def wait_for_page_load(self):
+        # Wait until the body tag is loaded
+        self.wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        time.sleep(2)  # Small delay to ensure all elements are loaded
+
+    def get_price(self):
+        price_tag = self.soup.find("div", class_="otm-Price")
+        if price_tag:
+            price_span = price_tag.find("a", class_="price")
+            if price_span:
+                return price_span.get_text(strip=True)
+        return None
+
+    def get_address(self):
+        address_tag = self.soup.find(
+            "div", class_="text-slate h4 font-normal leading-none font-heading"
+        )
+        if address_tag:
+            return address_tag.get_text(strip=True)
+        return None
+
+    def get_bedrooms(self):
+        return self.get_feature_value("beds")
+
+    def get_bathrooms(self):
+        return self.get_feature_value("bath")
+
+    def get_size(self):
+        size_div = self.soup.find("div", string=re.compile(r"\d+\s*(sq ft|sq m)", re.I))
+        if size_div:
+            return size_div.get_text(strip=True)
+        return None
+
+    def get_house_type(self):
+        property_type_div = self.soup.find("div", class_="otm-PropertyIcon")
+        if property_type_div:
+            return property_type_div.get_text(strip=True)
+        return None
+
+    def get_agent(self):
+        agent_section = self.soup.find("section", class_="agent-website-button")
+        if agent_section:
+            agent_name = agent_section.find("a")
+            if agent_name:
+                return agent_name.get_text(strip=True)
+        return None
+
+    def get_description(self):
+        description_section = self.soup.find("section", class_="property-description")
+        if description_section:
+            description_div = description_section.find(
+                "div", class_="text-base text-slate"
+            )
+            if description_div:
+                return description_div.get_text(separator="\n", strip=True)
+        return None
+
+    def get_features(self):
+        features_list = []
+        features_section = self.soup.find("section", class_="otm-FeaturesList")
+        if features_section:
+            feature_items = features_section.find_all("li")
+            for item in feature_items:
+                features_list.append(item.get_text(strip=True))
+        return features_list
+
+    def get_feature_value(self, feature_icon_name):
+        features = self.soup.find("div", class_="otm-IconFeatures")
+        if features:
+            feature_items = features.find_all("div", class_="flex items-center")
+            for item in feature_items:
+                svg = item.find("svg", {"data-icon": feature_icon_name})
+                if svg:
+                    return item.get_text(strip=True)
+        return None
+
+    def get_property_images(self):
+        images = []
+        unique_images = set()
+
+        # Navigate to the image gallery page
+        self.driver.get(self.image_url)
+        self.wait_for_page_load()
+
+        # Wait for the page to fully load
+        time.sleep(2)  # Adjust as necessary
+
+        # Parse the page source
+        self.soup = BeautifulSoup(self.driver.page_source, "lxml")
+
+        # Find all 'li' elements with class 'slide'
+        image_elements = self.soup.find_all("li", class_="slide")
+        for li in image_elements:
+            picture_tag = li.find("picture")
+            if picture_tag:
+                img_tag = picture_tag.find("img")
+                if img_tag:
+                    src_img = img_tag.get("src")
+                    if src_img and "logo" not in src_img:
+                        # Normalize the URL by removing the extension
+                        base_url = src_img.rsplit(".", 1)[0]
+                        if base_url not in unique_images:
+                            unique_images.add(base_url)
+                            images.append(src_img)
+
+        return images
+
+    def get_floorplans(self):
+        floorplans = []
+
+        self.driver.get(self.floorplan_url)
+        self.wait_for_page_load()
+
+        # Give time for the page to fully load
+        time.sleep(2)  # Adjust as necessary
+
+        # Parse the page source
+        soup = BeautifulSoup(self.driver.page_source, "lxml")
+
+        # Find the carousel root for floorplans
+        carousel_root = soup.find("div", class_="carousel-root floorplans")
+        if carousel_root:
+            # Find all 'img' tags within the carousel with alt="Floorplan"
+            img_tags = carousel_root.find_all("img", alt="Floorplan")
+            for img in img_tags:
+                src = img.get("src")
+                if src and src not in floorplans:
+                    floorplans.append(src)
+        else:
+            logger.info("Floorplan carousel not found.")
+
+        return floorplans
+
+
+# utils/onthemarket/__init__.py
+
+
 # pascraper/tasks.py
 from celery import shared_task
 
@@ -957,913 +2150,5 @@ class MediaStorage(S3Boto3Storage):
     location = "media"
     default_acl = "private"
     file_overwrite = False
-
-
-# sitescrapers/signals.py
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-
-from sitescrapers.models import ScrapingJob
-from sitescrapers.utils.backup import backup_scraping_job
-
-
-@receiver(post_save, sender=ScrapingJob)
-def scraping_job_saved(sender, instance, **kwargs):
-    try:
-        backup_scraping_job(instance)
-    except Exception as e:
-        # Log or handle the error as needed
-        print("Error backing up ScrapingJob:", e)
-
-
-# sitescrapers/tasks.py
-import requests
-from celery import shared_task
-from requests.exceptions import RequestException
-
-from pascraper.config.logging_config import configure_logger
-from sitescrapers.models import ScrapingJob
-from utils.onthemarket.onthemarket_scraper import OnTheMarketScraper
-from utils.rightmove.rightmove_scraper import RightmoveScraper
-from utils.util_funcs import save_property_data, send_progress_update
-
-logger = configure_logger(__name__)
-
-
-@shared_task()
-# @shared_task(name="pascraper.tasks.start_scraping_job", queue="scraper_queue")
-def start_scraping_job(job_id):
-    job = ScrapingJob.objects.get(id=job_id)
-
-    try:
-        # Update job status to in progress
-        job.status = "in_progress"
-        job.save()
-
-        # Send progress update: Fetching details
-        send_progress_update(
-            job.callback_url,
-            job.id,
-            {
-                "stage": "started",
-                "message": "Fetching details",
-                "progress": 10,
-            },
-            job.phone_number,
-        )
-
-        # Run the appropriate scraper
-        if job.source == "rightmove":
-            scraper = RightmoveScraper(
-                job.url,
-                callback_url=job.callback_url,
-                job_id=job.id,
-                phone_number=job.phone_number,
-            )
-            logger.info("Rightmove Scraper initiated...")
-        elif job.source == "onthemarket":
-            scraper = OnTheMarketScraper(
-                job.url,
-                callback_url=job.callback_url,
-                job_id=job.id,
-                phone_number=job.phone_number,
-            )
-            logger.info("OnTheMarket Scraper initiated...")
-        else:
-            raise ValueError(f"Invalid source: {job.source}")
-
-        # Run the scraper
-        data = scraper.scrape_property()
-
-        # Send progress update: scraping completed
-        send_progress_update(
-            job.callback_url,
-            job.id,
-            {
-                "stage": "scraping",
-                "message": "Fetching completed",
-                "progress": 100,
-            },
-            job.phone_number,
-        )
-
-        # Save the scraped data
-        property_instance = save_property_data(data, job.source, job.url)
-
-        # Update the job with the saved property
-        job.scraped_property_id = property_instance.id
-        job.status = "completed"
-        job.save()
-
-        # Send callback to the main application
-        callback_data = {
-            "job_id": job.id,
-            "property_id": job.property_id,  # Use the original property_id from the main app
-            "task_id": job.task_id,
-            "phone_number": job.phone_number,
-        }
-
-        logger.info(
-            f"Sending callback to URL: {job.callback_url} with data: {callback_data}"
-        )
-
-        try:
-            response = requests.post(job.callback_url, json=callback_data, verify=False)
-            response.raise_for_status()
-            logger.info(f"Callback response status: {response.status_code}")
-        except RequestException as e:
-            logger.error(f"Failed to send callback: {e}")
-    except Exception as e:
-        # Update job status to failed
-        job.status = "failed"
-        job.save()
-
-        # Optionally, send error details back via callback or logging
-        send_progress_update(
-            job.callback_url,
-            job.id,
-            {
-                "stage": "error",
-                "message": str(e),
-                "progress": 0,
-            },
-            job.phone_number,
-        )
-
-
-# sitescrapers/models.py
-from django.contrib.postgres.fields import ArrayField
-from django.core.exceptions import ValidationError
-from django.db import models
-from django.utils.translation import gettext_lazy as _
-
-
-class Property(models.Model):
-    PROPERTY_SOURCES = [
-        ("rightmove", "Rightmove"),
-        ("zoopla", "Zoopla"),
-        ("onthemarket", "OnTheMarket"),
-    ]
-
-    LISTING_TYPES = [
-        ("sale", "Sale"),
-        ("letting", "Letting"),
-    ]
-
-    source = models.CharField(max_length=20, choices=PROPERTY_SOURCES)
-    url = models.URLField(unique=True)
-    address = models.TextField()
-    price = models.DecimalField(max_digits=12, decimal_places=2)
-    bedrooms = models.PositiveIntegerField(null=True, blank=True)
-    bathrooms = models.PositiveIntegerField(null=True, blank=True)
-    size = models.CharField(max_length=50, null=True, blank=True)
-    house_type = models.CharField(max_length=100, null=True, blank=True)
-    agent = models.CharField(max_length=200, null=True, blank=True)
-    description = models.TextField()
-    images = ArrayField(models.URLField(), blank=True)
-    floorplans = ArrayField(models.URLField(), blank=True)
-    time_on_market = models.CharField(max_length=255, null=True, blank=True)
-    features = models.TextField(blank=True, null=True)
-    listing_type = models.CharField(
-        max_length=10, choices=LISTING_TYPES, null=True, blank=True
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def clean(self):
-        if self.price <= 0:
-            raise ValidationError("Price must be a positive number.")
-
-    def save(self, *args, **kwargs):
-        self.full_clean()
-        return super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.source} - {self.address}"
-
-    class Meta:
-        verbose_name = _("Property")
-        verbose_name_plural = _("Properties")
-
-
-class ScrapingJob(models.Model):
-    JOB_STATUS_CHOICES = [
-        ("pending", "Pending"),
-        ("in_progress", "In Progress"),
-        ("completed", "Completed"),
-        ("failed", "Failed"),
-    ]
-
-    url = models.URLField()
-    source = models.CharField(max_length=50, null=True, blank=True)
-    status = models.CharField(
-        max_length=20, choices=JOB_STATUS_CHOICES, default="pending"
-    )
-    callback_url = models.URLField(null=True, blank=True)
-    phone_number = models.CharField(max_length=20)
-    property_id = models.IntegerField(null=True, blank=True)  # ID from main app
-    scraped_property_id = models.IntegerField(
-        null=True, blank=True
-    )  # ID from scraper app
-    task_id = models.IntegerField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Job for {self.url} - {self.status}"
-
-    class Meta:
-        verbose_name = _("ScrapingJob")
-        verbose_name_plural = _("ScrapingJobs")
-
-
-# sitescrapers/serializers.py
-from rest_framework import serializers
-
-from sitescrapers.models import Property
-
-
-class PropertySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Property
-        fields = "__all__"
-
-
-# sitescrapers/__init__.py
-
-
-# sitescrapers/apps.py
-from django.apps import AppConfig
-
-
-class SitescrapersConfig(AppConfig):
-    default_auto_field = "django.db.models.BigAutoField"
-    name = "sitescrapers"
-
-    def ready(self):
-        # Import the signals module to ensure signal handlers are registered.
-        import sitescrapers.signals
-
-        print("Sitescrapers signals have been imported and registered.")
-
-
-# sitescrapers/admin.py
-from django.contrib import admin
-from django.db.models import Count
-from django.urls import reverse
-from django.utils.html import format_html
-
-from sitescrapers.models import Property, ScrapingJob
-
-
-@admin.register(Property)
-class PropertyAdmin(admin.ModelAdmin):
-    list_display = (
-        "source",
-        "address",
-        "price",
-        "bedrooms",
-        "bathrooms",
-        "house_type",
-        "agent",
-        "created_at",
-        "updated_at",
-    )
-    list_filter = ("source", "house_type", "agent", "created_at", "updated_at")
-    search_fields = ("address", "description", "agent")
-    readonly_fields = ("created_at", "updated_at")
-    fieldsets = (
-        (
-            "Basic Information",
-            {
-                "fields": (
-                    "source",
-                    "url",
-                    "address",
-                    "price",
-                    "bedrooms",
-                    "bathrooms",
-                    "size",
-                    "house_type",
-                    "agent",
-                )
-            },
-        ),
-        ("Details", {"fields": ("description", "images", "floorplans")}),
-        (
-            "Metadata",
-            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
-        ),
-    )
-
-    def get_queryset(self, request):
-        queryset = super().get_queryset(request)
-        return queryset
-
-    def view_on_site(self, obj):
-        return obj.url
-
-
-@admin.register(ScrapingJob)
-class ScrapingJobAdmin(admin.ModelAdmin):
-    list_display = ("url", "status", "created_at", "updated_at", "property_link")
-    list_filter = ("status", "created_at", "updated_at")
-    search_fields = (
-        "url",
-    )  # Removed property__address since there's no direct relationship
-    readonly_fields = ("created_at", "updated_at")
-
-    def property_link(self, obj):
-        if obj.scraped_property_id:  # Using scraped_property_id instead of property
-            try:
-                property_obj = Property.objects.get(id=obj.scraped_property_id)
-                url = reverse(
-                    "admin:sitescrapers_property_change",  # Updated to use correct app name
-                    args=[obj.scraped_property_id],
-                )
-                return format_html('<a href="{}">{}</a>', url, property_obj.address)
-            except Property.DoesNotExist:
-                return "-"
-        return "-"
-
-    property_link.short_description = "Associated Property"
-
-    def get_queryset(self, request):
-        return super().get_queryset(
-            request
-        )  # Removed select_related since there's no direct relationship
-
-
-# Optional: Create a custom admin site
-class RealEstateAdminSite(admin.AdminSite):
-    site_header = "Real Estate Admin"
-    site_title = "Real Estate Admin Portal"
-    index_title = "Welcome to Real Estate Admin Portal"
-
-
-real_estate_admin_site = RealEstateAdminSite(name="real_estate_admin")
-real_estate_admin_site.register(Property, PropertyAdmin)
-real_estate_admin_site.register(ScrapingJob, ScrapingJobAdmin)
-
-
-# sitescrapers/routing.py
-from django.urls import path
-
-websocket_urlpatterns = []
-
-
-# sitescrapers/tests.py
-from django.test import TestCase
-
-# Create your tests here.
-
-
-# sitescrapers/urls.py
-from django.urls import path
-
-from sitescrapers import views
-
-urlpatterns = [
-    path("rightmove/", views.RightmoveAPIView.as_view(), name="rightmove_api"),
-    path("zoopla/", views.ZooplaAPIView.as_view(), name="zoopla_api"),
-    path("onthemarket/", views.OnTheMarketAPIView.as_view(), name="onthemarket_api"),
-    path("scrape/", views.StartScrapingView.as_view(), name="start-scraping"),
-    path(
-        "scrape/<int:job_id>/data/",
-        views.ScrapingJobDataView.as_view(),
-        name="scraping-job-data",
-    ),
-    path(
-        "scrape-once/", views.StandaloneScrapeView.as_view(), name="standalone-scrape"
-    ),
-]
-
-
-# sitescrapers/views.py
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from rest_framework import status
-from rest_framework.decorators import api_view
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
-from sitescrapers.models import Property, ScrapingJob
-from sitescrapers.tasks import start_scraping_job
-from utils.onthemarket.onthemarket_scraper import OnTheMarketScraper
-from utils.rightmove.rightmove_scraper import RightmoveScraper
-from utils.zoopla.zoopla_scraper import ZooplaScraper
-
-
-class RightmoveAPIView(APIView):
-    def get(self, request):
-        url = request.GET.get("url")
-        if not url:
-            return JsonResponse({"error": "URL parameter is required"}, status=400)
-        scraper = RightmoveScraper(url)
-        data = scraper.scrape_property()
-        return JsonResponse(data, status=status.HTTP_200_OK)
-
-
-class ZooplaAPIView(APIView):
-    def get(self, request):
-        url = request.GET.get("url")
-        if not url:
-            return JsonResponse({"error": "URL parameter is required"}, status=400)
-        scraper = ZooplaScraper(url)
-        data = scraper.scrape()
-        return JsonResponse(data, status=status.HTTP_200_OK)
-
-
-class OnTheMarketAPIView(APIView):
-    def get(self, request):
-        url = request.GET.get("url")
-        if not url:
-            return JsonResponse({"error": "URL parameter is required"}, status=400)
-        scraper = OnTheMarketScraper(url)
-        data = scraper.scrape()
-        return JsonResponse(data, status=status.HTTP_200_OK)
-
-
-class StartScrapingView(APIView):
-    def post(self, request):
-        url = request.data.get("url")
-        source = request.data.get("source")
-        callback_url = request.data.get("callback_url")
-        property_id = request.data.get("property_id")
-        task_id = request.data.get("task_id")
-        phone_number = request.data.get("phone_number")
-
-        if not url or not source or not callback_url or not phone_number:
-            return Response(
-                {"error": "URL, source, callback_url and phone_number are required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        job = ScrapingJob.objects.create(
-            url=url,
-            source=source,
-            callback_url=callback_url,
-            property_id=property_id,
-            task_id=task_id,
-            phone_number=phone_number,
-        )
-
-        start_scraping_job.delay(job.id)
-
-        return Response({"job_id": job.id}, status=status.HTTP_202_ACCEPTED)
-
-
-class ScrapingJobDataView(APIView):
-    def get(self, request, job_id):
-        try:
-            job = ScrapingJob.objects.get(id=job_id)
-            if job.status != "completed":
-                return Response(
-                    {"error": "Scraping not completed yet."},
-                    status=status.HTTP_202_ACCEPTED,
-                )
-            property_instance = Property.objects.get(id=job.scraped_property_id)
-            property_data = {
-                "address": property_instance.address,
-                "price": str(property_instance.price),
-                "bedrooms": property_instance.bedrooms,
-                "bathrooms": property_instance.bathrooms,
-                "size": property_instance.size,
-                "house_type": property_instance.house_type,
-                "agent": property_instance.agent,
-                "description": property_instance.description,
-                "time_on_market": property_instance.time_on_market,
-                "features": property_instance.features,
-                "listing_type": property_instance.listing_type,
-                "images": property_instance.images,
-                "floorplans": property_instance.floorplans,
-            }
-            return Response({"data": property_data})
-        except ScrapingJob.DoesNotExist:
-            return Response(
-                {"error": "Job not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-        except Property.DoesNotExist:
-            return Response(
-                {"error": "Property not found."}, status=status.HTTP_404_NOT_FOUND
-            )
-
-
-class StandaloneScrapeView(APIView):
-    """
-    This endpoint performs a one-time scrape of a given URL
-    and returns the data immediately, without scheduling a job or using Celery.
-    """
-
-    def post(self, request, *args, **kwargs):
-        """
-        POST /scrape-once/
-        Body params:
-            {
-                "url": "https://www.rightmove.co.uk/properties/12345678",
-                "source": "rightmove"  # Optional if you want to handle logic
-            }
-        """
-        url = request.data.get("url")
-        source = request.data.get("source", "rightmove")
-
-        if not url:
-            return Response(
-                {"error": "URL is required."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # 1) Choose the appropriate scraper based on `source` or fallback
-        if source.lower() == "rightmove":
-            scraper = RightmoveScraper(url)
-        elif source.lower() == "zoopla":
-            scraper = ZooplaScraper(url)
-        elif source.lower() == "onthemarket":
-            scraper = OnTheMarketScraper(url)
-        else:
-            # You could auto-detect or handle default logic here
-            # For simplicity, defaulting to RightmoveScraper as an example
-            scraper = RightmoveScraper(url)
-
-        try:
-            # 2) Scrape data synchronously
-            scraped_data = scraper.scrape_property()  # or `.scrape()` if Zoopla
-
-            # # 3) (Optional) Save the data to Property model
-            # property_instance = save_property_data(scraped_data, source, url)
-
-            # 4) Return the scraped data directly to the client
-            return Response(
-                {
-                    "message": "Scrape successful.",
-                    "scraped_data": scraped_data,
-                    # "property_id": property_instance.id,
-                },
-                status=status.HTTP_200_OK,
-            )
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-
-# sitescrapers/management/__init__.py
-
-
-# sitescrapers/management/commands/__init__.py
-
-
-# sitescrapers/management/commands/scraper_stats.py
-from django.core.management.base import BaseCommand
-from django.db.models import Max, Min, Q  # Import Min, Max
-
-# Import your models from the sitescrapers app
-from sitescrapers.models import Property
-
-
-class Command(BaseCommand):
-    help = "Displays statistics about scraped Property records."
-
-    def handle(self, *args, **options):
-        self.stdout.write("Calculating Scraper Statistics...")
-        self.stdout.write("-" * 20)
-
-        # --- Timestamps ---
-        timestamps = Property.objects.aggregate(
-            first_created=Min("created_at"),
-            last_created=Max("created_at"),
-            last_updated=Max("updated_at"),
-        )
-        first_created = timestamps.get("first_created") or "N/A"
-        last_created = timestamps.get("last_created") or "N/A"
-        last_updated = timestamps.get("last_updated") or "N/A"
-        self.stdout.write(f"- First Record Created: {first_created}")
-        self.stdout.write(f"- Last Record Created:  {last_created}")
-        self.stdout.write(f"- Last Record Updated:  {last_updated}")
-        self.stdout.write("-" * 20)
-
-        # --- Counts (using Python iteration) ---
-        self.stdout.write("Calculating counts (using Python iteration)...")
-        all_properties_qs = Property.objects.only("images", "floorplans").iterator()
-
-        total_properties_scraped = 0
-        total_photos_scraped = 0
-        properties_with_floorplans = 0
-        total_floorplans_scraped = 0
-
-        for prop in all_properties_qs:
-            total_properties_scraped += 1
-            if prop.images:
-                total_photos_scraped += len(prop.images)
-            if prop.floorplans:
-                properties_with_floorplans += 1
-                total_floorplans_scraped += len(prop.floorplans)
-
-        # --- Output the results ---
-        self.stdout.write(f"- Total Properties Scraped: {total_properties_scraped}")
-        self.stdout.write(f"- Total Photos Scraped: {total_photos_scraped}")
-        self.stdout.write(
-            f"- Properties with Scraped Floorplans: {properties_with_floorplans}"
-        )
-        self.stdout.write(f"- Total Scraped Floorplans: {total_floorplans_scraped}")
-
-        self.stdout.write("-" * 20)
-        self.stdout.write(
-            self.style.SUCCESS("Finished calculating scraper statistics.")
-        )
-
-
-# sitescrapers/management/commands/restore_backup.py
-import requests
-from django.conf import settings
-from django.core.management.base import BaseCommand
-
-from sitescrapers.models import ScrapingJob
-
-
-class Command(BaseCommand):
-    help = "Restores ScrapingJob data from the central backup service."
-
-    def handle(self, *args, **kwargs):
-        backup_url = f"{settings.BACKUP_SERVICE_URL}/api/backup/scraping-job/"
-        response = requests.get(backup_url, timeout=10)
-        response.raise_for_status()
-        jobs = response.json()
-        for data in jobs:
-            ScrapingJob.objects.update_or_create(
-                pk=data["primary_key"],
-                defaults={
-                    "url": data["url"],
-                    "source": data["source"],
-                    "status": data["status"],
-                    "callback_url": data.get("callback_url"),
-                    "phone_number": data["phone_number"],
-                    "property_id": data.get("property_id"),
-                    "scraped_property_id": data.get("scraped_property_id"),
-                    "task_id": data.get("task_id"),
-                },
-            )
-        self.stdout.write(self.style.SUCCESS("Scraping jobs restored from backup."))
-
-
-# sitescrapers/management/commands/sync_jobs_to_sdb.py
-# sitescrapers/management/commands/sync_jobs_to_sdb.py
-
-import time
-
-import requests
-from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
-from requests.exceptions import RequestException
-
-# Assuming you have your logger configured
-from pascraper.config.logging_config import configure_logger
-
-# Import the source model and the refactored serializer function
-from sitescrapers.models import ScrapingJob
-from sitescrapers.utils.backup import serialize_scraping_job_for_sdb
-
-logger = configure_logger(__name__)
-
-
-class Command(BaseCommand):
-    help = "Synchronizes existing ScrapingJob data from Scraper service to the SDB service API."
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            "--batch-size",
-            type=int,
-            default=100,
-            help="Number of Jobs to process before logging progress.",
-        )
-        parser.add_argument(
-            "--start-pk",
-            type=int,
-            default=None,
-            help="Optional primary key (Scraper DB) to start processing from.",
-        )
-        parser.add_argument(
-            "--api-url",
-            type=str,
-            default=None,
-            help="Override the SDB API URL from settings.",
-        )
-        parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="Simulate the process: serialize data and log actions, but do not send API requests.",
-        )
-        parser.add_argument(
-            "--delay",
-            type=float,
-            default=0.05,  # Small delay by default
-            help="Delay in seconds between API calls to avoid overwhelming the SDB service.",
-        )
-
-    def handle(self, *args, **options):
-        batch_size = options["batch_size"]
-        start_pk = options["start_pk"]
-        api_url_override = options["api_url"]
-        dry_run = options["dry_run"]
-        delay = options["delay"]
-
-        # Determine the target API URL
-        if api_url_override:
-            sdb_api_url = (
-                "https://" + api_url_override.rstrip("/") + "/api/backup/scraping-job/"
-            )
-
-        else:
-            base_url = getattr(settings, "BACKUP_SERVICE_URL", None)
-            if not base_url:
-                raise CommandError("BACKUP_SERVICE_URL is not configured in settings.")
-            sdb_api_url = (
-                "https://" + base_url.rstrip("/") + "/api/backup/scraping-job/"
-            )
-
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"--- Starting Initial ScrapingJob Sync to SDB ({sdb_api_url}) ---"
-            )
-        )
-        if dry_run:
-            self.stdout.write(
-                self.style.WARNING("DRY RUN enabled. No data will be sent.")
-            )
-
-        # Query jobs from the scraper database
-        queryset = ScrapingJob.objects.using("default").all().order_by("pk")
-
-        if start_pk:
-            queryset = queryset.filter(pk__gte=start_pk)
-            self.stdout.write(f"Starting processing from PK >= {start_pk}")
-
-        total_count = queryset.count()
-        self.stdout.write(f"Found {total_count} ScrapingJob records to process.")
-
-        processed_count = 0
-        success_count = 0
-        error_count = 0
-
-        # Use iterator for memory efficiency
-        for job in queryset.iterator():
-            processed_count += 1
-            self.stdout.write(
-                f"\rProcessing ScrapingJob PK={job.pk} ({processed_count}/{total_count})...",
-                ending="",
-            )
-
-            try:
-                # Serialize using the refactored function
-                payload = serialize_scraping_job_for_sdb(job)
-                if payload is None:
-                    self.stdout.write(
-                        self.style.WARNING(
-                            f"\n  Skipping PK={job.pk}: Serialization failed."
-                        )
-                    )
-                    error_count += 1
-                    continue
-
-                if dry_run:
-                    if processed_count % batch_size == 0:
-                        self.stdout.write(f"\n  [DRY RUN] Would sync PK={job.pk}...")
-                    success_count += 1
-                else:
-                    # Make the actual API call
-                    try:
-                        response = requests.post(sdb_api_url, json=payload, timeout=30)
-                        response.raise_for_status()
-
-                        if response.status_code in [200, 201]:
-                            success_count += 1
-                            if processed_count % batch_size == 0:
-                                self.stdout.write(
-                                    f"\n  Synced batch up to PK={job.pk}. Status: {response.status_code}"
-                                )
-                        else:
-                            self.stdout.write(
-                                self.style.ERROR(
-                                    f"\n  Error for PK={job.pk}: Unexpected Status {response.status_code}"
-                                )
-                            )
-                            logger.error(
-                                f"Unexpected status {response.status_code} for ScrapingJob PK={job.pk}: {response.text[:500]}"
-                            )
-                            error_count += 1
-
-                    except RequestException as e:
-                        self.stdout.write(
-                            self.style.ERROR(f"\n  API Error for PK={job.pk}: {e}")
-                        )
-                        logger.error(
-                            f"Failed to sync ScrapingJob PK={job.pk}: {e}",
-                            exc_info=True,
-                        )
-                        if hasattr(e, "response") and e.response is not None:
-                            logger.error(f"  Response status: {e.response.status_code}")
-                            logger.error(f"  Response text: {e.response.text[:500]}")
-                        error_count += 1
-
-                    # Optional delay
-                    if delay > 0:
-                        time.sleep(delay)
-
-            except Exception as e:
-                self.stdout.write(
-                    self.style.ERROR(
-                        f"\n  Unexpected Error processing PK={job.pk}: {e}"
-                    )
-                )
-                logger.exception(f"Unexpected error processing ScrapingJob PK={job.pk}")
-                error_count += 1
-
-        # Final summary
-        self.stdout.write(self.style.SUCCESS(f"\n--- Sync Complete ---"))
-        self.stdout.write(f"Total Processed: {processed_count}")
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Successful Syncs{' (Dry Run)' if dry_run else ''}: {success_count}"
-            )
-        )
-        self.stdout.write(self.style.ERROR(f"Errors: {error_count}"))
-
-        if error_count > 0:
-            self.stdout.write(
-                self.style.WARNING("Check application logs for details on errors.")
-            )
-
-
-# sitescrapers/utils/backup.py
-# sitescrapers/utils/backup.py
-import requests
-from django.conf import settings
-
-from pascraper.config.logging_config import configure_logger
-
-logger = configure_logger(__name__)
-
-
-def serialize_scraping_job_for_sdb(instance):
-    """Serializes a sitescrapers.ScrapingJob instance for the SDB service."""
-    if not instance:
-        return None
-
-    payload = {
-        "primary_key": instance.pk,  # Send the source PK as 'primary_key'
-        "url": instance.url,
-        "source": instance.source,
-        "status": instance.status,
-        "callback_url": instance.callback_url,
-        "phone_number": instance.phone_number,
-        # These IDs reference records in the Orchestration DB, send them as is
-        "property_id": instance.property_id,
-        "task_id": instance.task_id,
-        # This ID references a record in the Scraper DB's Property table
-        "scraped_property_id": instance.scraped_property_id,
-        # SDB model handles its own timestamps on save
-        # "updated_at": instance.updated_at.isoformat(),
-    }
-    return payload
-
-
-def backup_scraping_job(instance):
-    """Sends the serialized scraping job data to the SDB service."""
-    payload = serialize_scraping_job_for_sdb(instance)
-    if not payload:
-        logger.warning(f"Could not serialize ScrapingJob PK={instance.pk} for backup.")
-        return
-
-    # Construct the correct URL for the SDB scraping job endpoint
-    try:
-        base_url = settings.BACKUP_SERVICE_URL.rstrip("/")
-        # Correct path based on sdb/urls.py -> /api/backup/scraping-job/
-        sdb_job_url = f"{base_url}/api/backup/scraping-job/"
-    except AttributeError:
-        logger.error(
-            "BACKUP_SERVICE_URL not configured in settings. Cannot backup scraping job."
-        )
-        return  # Exit if URL isn't set
-
-    logger.debug(
-        f"Sending scraping job backup payload for PK={instance.pk} to {sdb_job_url}"
-    )
-    try:
-        response = requests.post(sdb_job_url, json=payload, timeout=10)
-        response.raise_for_status()
-        logger.info(
-            f"Successfully backed up ScrapingJob PK={instance.pk}. Status: {response.status_code}"
-        )
-    except requests.exceptions.RequestException as e:
-        logger.error(
-            f"Failed to backup ScrapingJob PK={instance.pk}: {e}", exc_info=True
-        )
-        if hasattr(e, "response") and e.response is not None:
-            logger.error(f"SDB Response Status: {e.response.status_code}")
-            logger.error(f"SDB Response Body: {e.response.text[:500]}...")
-
-
-# sitescrapers/utils/__init__.py
 
 
