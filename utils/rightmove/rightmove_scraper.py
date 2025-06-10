@@ -224,29 +224,32 @@ class RightmoveScraper(BaseScraper):
         return features_text
 
     def get_listing_type(self):
-        # Check for indicators specific to lettings
-        if self.soup.find("h2", text=re.compile("Letting details", re.I)):
+        # --- PRIORITY 1: Check for unambiguous LETTING indicators ---
+        # These are very specific to rental pages and unlikely to appear on sales pages.
+
+        # Check 1: The "Letting details" heading is the strongest indicator.
+        if self.soup.find("h2", text=re.compile(r"^\s*Letting details\s*$", re.I)):
             return "letting"
-        if self.soup.find(string=re.compile("Tenancy info", re.I)):
+
+        # Check 2: The "Tenancy info" button is also a very strong indicator.
+        if self.soup.find("button", string=re.compile(r"^\s*Tenancy info\s*$", re.I)):
             return "letting"
-        # Check for a "pcm" (per calendar month) price, a very strong indicator for lettings
+
+        # Check 3: Price containing "pcm" (per calendar month) is a clear sign of a rental.
         price_text = self.get_price()
         if price_text and "pcm" in price_text.lower():
             return "letting"
-        if self.soup.find("dt", text=re.compile("Let available date", re.I)):
-            return "letting"
-        if self.soup.find("dt", text=re.compile("Deposit:", re.I)):
-            return "letting"
 
-        # Check for indicators specific to sales
-        if self.soup.find("dt", text=re.compile("Tenure", re.I)):
-            return "sale"
-        if self.soup.find(string=re.compile("Freehold|Leasehold", re.I)):
-            return "sale"
-        if self.soup.find(
-            string=re.compile("Offers in region of|Guide Price|Offers over", re.I)
-        ):
-            return "sale"
+        # --- PRIORITY 2: Check for unambiguous SALE indicators ---
+        # We search within the "info reel" section to avoid matching keywords in the general description.
+        info_reel = self.soup.find("dl", {"data-test": "infoReel"})
+        if info_reel:
+            # The word "TENURE" in the info reel is a definitive sign of a sale.
+            # This is much safer than searching the whole page for "Leasehold".
+            if info_reel.find(string=re.compile("TENURE", re.I)):
+                return "sale"
 
-        # Default to 'sale' if no specific indicators are found
+        # --- PRIORITY 3: Fallback ---
+        # If none of the definitive checks above passed, it's a sale.
+        # This is the correct place for the default.
         return "sale"
