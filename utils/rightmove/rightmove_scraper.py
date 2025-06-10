@@ -129,7 +129,7 @@ class RightmoveScraper(BaseScraper):
             src = img.get("src", "")  # Use default "" to prevent errors
             alt = img.get("alt", "")  # Use default "" to prevent errors
 
-            if src and ("_FLP_" in src or pattern.search(alt)):
+            if src and "media" in src and ("_FLP_" in src or pattern.search(alt)):
                 floorplans.append(src)
 
         # Return a list of unique floorplan URLs
@@ -229,9 +229,13 @@ class RightmoveScraper(BaseScraper):
             return "letting"
         if self.soup.find(string=re.compile("Tenancy info", re.I)):
             return "letting"
-        if self.soup.find(string=re.compile("Deposit", re.I)):
+        # Check for a "pcm" (per calendar month) price, a very strong indicator for lettings
+        price_text = self.get_price()
+        if price_text and "pcm" in price_text.lower():
             return "letting"
         if self.soup.find("dt", text=re.compile("Let available date", re.I)):
+            return "letting"
+        if self.soup.find("dt", text=re.compile("Deposit:", re.I)):
             return "letting"
 
         # Check for indicators specific to sales
